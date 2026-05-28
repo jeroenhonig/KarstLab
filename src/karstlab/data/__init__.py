@@ -19,6 +19,7 @@ from karstlab.data.project_io import (
     save_project,
     slugify_project_name,
 )
+from karstlab.data.raster_io import DemData, DemMetadata, read_band, read_dem, save_geotiff
 from karstlab.data.schemas import (
     AnalysisParams,
     BoundingBox,
@@ -53,6 +54,8 @@ __all__ = [
     "PoiSource",
     "ProjectFile",
     "UserSettings",
+    "DemData",
+    "DemMetadata",
     "GENERIC_PROFILE_ID",
     "LandProfileError",
     "CANONICAL_FILENAMES",
@@ -68,4 +71,7 @@ __all__ = [
     "load_all_land_profiles",
     "load_land_profile",
     "load_land_profile_from_path",
+    "read_band",
+    "read_dem",
+    "save_geotiff",
 ]
