@@ -58,7 +58,7 @@ def save_geotiff(
     path: Path,
     array: np.ndarray,
     *,
-    crs: CRS | str,
+    crs: CRS | str | None,
     transform: Affine,
     nodata: float | int | None,
     dtype: str | None = None,

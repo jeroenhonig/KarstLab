@@ -40,6 +40,13 @@ def test_is_metric_crs_distinguishes_projected_and_geographic_crs() -> None:
     assert is_metric_crs("EPSG:4326") is False
 
 
+def test_to_metric_rejects_non_metric_target_crs(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    dem_path = write_synthetic_dem(tmp_path / "synthetic_dem.tif")
+
+    with pytest.raises(ValueError, match="not metric"):
+        to_metric(dem_path, tmp_path / "not_metric.tif", target_crs="EPSG:4326")
+
+
 def test_to_wgs84_reprojects_synthetic_dem(tmp_path) -> None:  # type: ignore[no-untyped-def]
     dem_path = write_synthetic_dem(tmp_path / "synthetic_dem.tif")
     output = to_wgs84(dem_path, tmp_path / "synthetic_wgs84.tif")

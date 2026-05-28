@@ -28,6 +28,9 @@ def to_metric(
     target_crs: CRS | str,
     resampling: Resampling = Resampling.bilinear,
 ) -> Path:
+    if not is_metric_crs(target_crs):
+        raise ValueError(f"target_crs is not metric: {target_crs}")
+
     return reproject_raster(
         source_path,
         target_path,
@@ -88,10 +91,11 @@ def reproject_raster(
                     destination=rasterio.band(destination, band),
                     src_transform=source.transform,
                     src_crs=source.crs,
+                    src_nodata=source.nodata,
                     dst_transform=transform,
                     dst_crs=destination_crs,
+                    dst_nodata=source.nodata,
                     resampling=resampling,
                 )
 
     return target_path
-

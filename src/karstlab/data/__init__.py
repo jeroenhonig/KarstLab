@@ -38,6 +38,7 @@ from karstlab.data.schemas import (
     ProjectFile,
     UserSettings,
 )
+from karstlab.data.vrt_builder import VrtMosaic, VrtTile, assemble_geotiff, assemble_vrt
 
 __all__ = [
     "AnalysisParams",
@@ -57,6 +58,10 @@ __all__ = [
     "UserSettings",
     "DemData",
     "DemMetadata",
+    "VrtMosaic",
+    "VrtTile",
+    "assemble_geotiff",
+    "assemble_vrt",
     "detect_crs",
     "GENERIC_PROFILE_ID",
     "LandProfileError",
