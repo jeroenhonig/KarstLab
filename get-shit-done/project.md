@@ -56,10 +56,9 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 
 ## TODO Queue
 
-1. Ask Claude Code to review vector I/O helpers.
-2. Address Claude Code findings on vector I/O.
-3. Decide whether to add `contours_to_vector()` now or defer to contour generation in Phase 4.
-4. Start Phase 2 WhiteboxTools adapter and hydrology wrapper.
+1. Ask Claude Code to verify vector I/O review fixes.
+2. Start Phase 2 WhiteboxTools adapter and hydrology wrapper after Claude confirms no blockers.
+3. Defer `contours_to_vector()` until contour generation exists in Phase 4.
 
 ## Blockers
 
@@ -90,7 +89,8 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28T16:20:00+02:00 | Phase 1 VRT review fixes | Added grid-alignment tolerance validation, safe dataset open/close handling, and VRT source paths that work for tiles outside the VRT directory | Validation: `make PYTHON=.venv/bin/python test` pass (57 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
 - 2026-05-28T16:30:00+02:00 | Phase 1 WhiteboxTools verification | Verified the Python wrapper can download and run the platform WhiteboxTools binary in the active Python 3.12 venv | Validation: `.venv/bin/python -c "from whitebox.whitebox_tools import WhiteboxTools; wbt=WhiteboxTools(); print(wbt.version())"` reports `WhiteboxTools v2.4.0`.
 - 2026-05-28T16:40:00+02:00 | Phase 1 vector I/O | Added WGS84 GeoJSON export, KML export for points/lines/polygons, GPX waypoint export, GPX waypoint import, and KML point import helpers | Validation: `make PYTHON=.venv/bin/python test` pass (61 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
+- 2026-05-28T16:47:00+02:00 | Phase 1 vector I/O review fixes | Fixed non-mutating KML description generation, replaced fragile CRS string comparison with semantic pyproj CRS equality, and validated GPX geometry type before writing | Validation: `make PYTHON=.venv/bin/python test` pass (64 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 
 ## Next Action
 
-Ask Claude Code to review vector I/O helpers before starting the Phase 2 WhiteboxTools adapter and hydrology wrapper.
+Ask Claude Code to verify vector I/O review fixes before starting the Phase 2 WhiteboxTools adapter and hydrology wrapper.

@@ -11,9 +11,11 @@ import geopandas as gpd
 import gpxpy
 import gpxpy.gpx
 import simplekml
+from pyproj import CRS
 from shapely.geometry import LineString, Point, Polygon
 
 WGS84_CRS = "EPSG:4326"
+WGS84 = CRS.from_user_input(WGS84_CRS)
 
 
 def to_geojson(frame: gpd.GeoDataFrame, path: Path) -> Path:
@@ -43,12 +45,13 @@ def to_kml(frame: gpd.GeoDataFrame, path: Path, *, name_field: str = "name") -> 
 def to_gpx(frame: gpd.GeoDataFrame, path: Path, *, name_field: str = "name") -> Path:
     """Write point geometries from a GeoDataFrame to GPX waypoints."""
     output = _as_wgs84(frame)
+    if not all(isinstance(geometry, Point) for geometry in output.geometry):
+        raise ValueError("GPX export supports point geometries only")
+
     gpx = gpxpy.gpx.GPX()
 
     for index, row in output.iterrows():
         geometry = row.geometry
-        if not isinstance(geometry, Point):
-            raise ValueError("GPX export supports point geometries only")
         name = str(row.get(name_field, index))
         gpx.waypoints.append(
             gpxpy.gpx.GPXWaypoint(latitude=geometry.y, longitude=geometry.x, name=name)
@@ -104,14 +107,14 @@ def read_kml_points(path: Path) -> gpd.GeoDataFrame:
 def _as_wgs84(frame: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     if frame.crs is None:
         raise ValueError("Vector data must have a CRS before export")
-    if frame.crs.to_string() == WGS84_CRS:
+    if CRS.from_user_input(frame.crs).equals(WGS84, ignore_axis_order=True):
         return frame
     return frame.to_crs(WGS84_CRS)
 
 
 def _description(properties: dict[str, Any]) -> str:
-    properties.pop("geometry", None)
-    return json.dumps(properties, ensure_ascii=False, default=str)
+    filtered = {key: value for key, value in properties.items() if key != "geometry"}
+    return json.dumps(filtered, ensure_ascii=False, default=str)
 
 
 def _add_geometry_to_kml(
