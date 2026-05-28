@@ -43,7 +43,7 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 
 ## TODO Queue
 
-1. Make initial git commit for the v0.1.0 skeleton.
+1. Ask Claude Code for a short follow-up review of the v0.1.0 review fixes.
 2. Add Pydantic schemas for shared contracts.
 3. Add synthetic DEM fixture and first raster I/O tests.
 4. Add raster I/O implementation.
@@ -67,7 +67,8 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28T00:00:00+02:00 | Orchestration setup | Added agent workflow and v1.0.0 release plan documentation | Validation: documentation files created; no code tests applicable.
 - 2026-05-28T12:15:00+02:00 | Phase 0 | Added Python package skeleton, CLI doctor command, GUI packaging spike entrypoint, Makefile, pyproject, smoke tests, README, gitignore, and PyInstaller spec stub | Validation: `make test` pass (2 tests); `make lint` pass; `make doctor` pass; `make typecheck` blocked by missing mypy; `make package` blocked by missing PyInstaller.
 - 2026-05-28T12:35:00+02:00 | Phase 0 review fixes | Applied Claude review feedback: Python 3.12 venv, dynamic version, contextily dependency, PyInstaller spec path fix, repo-local PyInstaller cache, typed pytest fixture, `py.typed`, README target docs, UPX disabled, git initialized | Validation: `.venv/bin/python -m pip install -e ".[dev,package]"` pass; `make PYTHON=.venv/bin/python test` pass (2 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python doctor` pass; `make PYTHON=.venv/bin/python package` pass.
+- 2026-05-28T12:40:00+02:00 | Phase 0 commit | Created initial repository commit `75914e9` for v0.1.0 skeleton and documentation | Validation: `git commit -m "Initialize KarstLab v0.1.0 skeleton"` pass.
 
 ## Next Action
 
-Commit the v0.1.0 skeleton, then ask Claude Code for a short follow-up review of the review fixes before moving to Phase 1 shared contracts.
+Ask Claude Code for a short follow-up review of the v0.1.0 review fixes before moving to Phase 1 shared contracts.
