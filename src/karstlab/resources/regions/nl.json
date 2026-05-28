@@ -26,19 +26,19 @@
         "type": "wmts",
         "url": "https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0",
         "layer": "standaard",
-        "attribution": "Kadaster"
+        "attribution": "© Kadaster"
       },
       {
         "name": "OpenStreetMap",
         "type": "tile",
         "url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "attribution": "OpenStreetMap contributors"
+        "attribution": "© OpenStreetMap contributors"
       },
       {
         "name": "Esri World Imagery",
         "type": "tile",
         "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        "attribution": "Esri"
+        "attribution": "© Esri"
       }
     ],
     "overlays": [
@@ -48,7 +48,7 @@
         "url": "https://geodata.nationaalgeoregister.nl/geologie/wms",
         "layer": "lithostratigrafie",
         "opacity": 0.5,
-        "attribution": "TNO-GDN"
+        "attribution": "© TNO-GDN"
       }
     ]
   },
@@ -62,4 +62,3 @@
     "doline_max_area_m2": 100000.0
   }
 }
-

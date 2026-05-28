@@ -4,7 +4,7 @@
   "name": {
     "en": "Generic / Worldwide",
     "nl": "Generiek / Wereldwijd",
-    "fr": "Generique / Mondial"
+    "fr": "Générique / Mondial"
   },
   "default_crs": "EPSG:4326",
   "common_crs": ["EPSG:4326", "EPSG:3857"],
@@ -15,13 +15,13 @@
         "name": "OpenStreetMap",
         "type": "tile",
         "url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "attribution": "OpenStreetMap contributors"
+        "attribution": "© OpenStreetMap contributors"
       },
       {
         "name": "Esri World Imagery",
         "type": "tile",
         "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        "attribution": "Esri"
+        "attribution": "© Esri"
       }
     ],
     "overlays": []
@@ -36,4 +36,3 @@
     "doline_max_area_m2": 100000.0
   }
 }
-

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "name": {
     "en": "Belgium",
-    "nl": "Belgie",
+    "nl": "België",
     "fr": "Belgique"
   },
   "default_crs": "EPSG:31370",
@@ -23,7 +23,7 @@
       "url": "https://geoportail.wallonie.be/catalogue/b795de68-726c-4bdf-a62a-a42686aa5b6f.html",
       "description": {
         "en": "Walloon digital terrain model (1m resolution)",
-        "fr": "Modele Numerique de Terrain de Wallonie (resolution 1m)"
+        "fr": "Modèle Numérique de Terrain de Wallonie (résolution 1m)"
       },
       "resolution_m": 1.0
     }
@@ -34,13 +34,13 @@
         "name": "OpenStreetMap",
         "type": "tile",
         "url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "attribution": "OpenStreetMap contributors"
+        "attribution": "© OpenStreetMap contributors"
       },
       {
         "name": "Esri World Imagery",
         "type": "tile",
         "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        "attribution": "Esri"
+        "attribution": "© Esri"
       }
     ],
     "overlays": [
@@ -50,7 +50,7 @@
         "url": "https://geoservices.wallonie.be/arcgis/services/SOL_SSOL/CARTE_GEOLOGIQUE_SIMPLE/MapServer/WMSServer",
         "layer": "0",
         "opacity": 0.5,
-        "attribution": "SPW"
+        "attribution": "© SPW"
       }
     ]
   },
@@ -64,4 +64,3 @@
     "doline_max_area_m2": 100000.0
   }
 }
-

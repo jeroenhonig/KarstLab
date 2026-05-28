@@ -14,7 +14,7 @@
       "url": "https://geoservices.ign.fr/lidarhd",
       "description": {
         "en": "French national LiDAR HD bare-earth DEM (1m resolution)",
-        "fr": "Modele Numerique de Terrain LiDAR HD (resolution 1m)"
+        "fr": "Modèle Numérique de Terrain LiDAR HD (résolution 1m)"
       },
       "resolution_m": 1.0
     },
@@ -23,7 +23,7 @@
       "url": "https://geoservices.ign.fr/rgealti",
       "description": {
         "en": "French national DEM (1m and 5m resolution)",
-        "fr": "Modele Numerique de Terrain national (resolution 1m et 5m)"
+        "fr": "Modèle Numérique de Terrain national (résolution 1m et 5m)"
       },
       "resolution_m": 1.0
     }
@@ -35,19 +35,19 @@
         "type": "wmts",
         "url": "https://wxs.ign.fr/cartes/geoportail/wmts",
         "layer": "GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2",
-        "attribution": "IGN"
+        "attribution": "© IGN"
       },
       {
         "name": "OpenStreetMap",
         "type": "tile",
         "url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "attribution": "OpenStreetMap contributors"
+        "attribution": "© OpenStreetMap contributors"
       },
       {
         "name": "Esri World Imagery",
         "type": "tile",
         "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        "attribution": "Esri"
+        "attribution": "© Esri"
       }
     ],
     "overlays": [
@@ -57,7 +57,7 @@
         "url": "https://geoservices.brgm.fr/geologie",
         "layer": "SCAN_H_GEOL50",
         "opacity": 0.5,
-        "attribution": "BRGM"
+        "attribution": "© BRGM"
       },
       {
         "name": "Cadastre (PCI)",
@@ -65,7 +65,7 @@
         "url": "https://inspire.cadastre.gouv.fr/scpc/wms",
         "layer": "PARCELLES",
         "opacity": 0.4,
-        "attribution": "DGFiP"
+        "attribution": "© DGFiP"
       },
       {
         "name": "Karst Zones (BDLISA)",
@@ -73,19 +73,19 @@
         "url": "https://bdlisa.eaufrance.fr/geoserver/wms",
         "layer": "bdlisa:EntiteKarst",
         "opacity": 0.5,
-        "attribution": "BRGM/EauFrance"
+        "attribution": "© BRGM/EauFrance"
       }
     ]
   },
   "poi_sources": [
     {
-      "name": "BRGM Cavites Georisques",
+      "name": "BRGM Cavités Géorisques",
       "type": "brgm_cavites",
       "url": "https://georisques.gouv.fr/api/v1/cavites",
       "departmental": true
     },
     {
-      "name": "Spelebase CAVECENTER",
+      "name": "Spélébase CAVECENTER",
       "type": "spelebase",
       "url": "https://www.spelebase.fr/api/cavites",
       "departmental": true
@@ -105,4 +105,3 @@
     "doline_max_area_m2": 60000.0
   }
 }
-

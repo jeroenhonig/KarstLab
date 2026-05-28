@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: test lint typecheck check doctor package clean
+.PHONY: test lint typecheck check doctor schemas check-schemas package clean
 
 test:
 	$(PYTHON) -m pytest
@@ -15,6 +15,12 @@ check: lint typecheck test
 
 doctor:
 	$(PYTHON) -m karstlab.cli.main doctor
+
+schemas:
+	$(PYTHON) -m karstlab.data.schema_export
+
+check-schemas:
+	$(PYTHON) -m karstlab.data.schema_export --check
 
 package:
 	PYINSTALLER_CONFIG_DIR=.pyinstaller $(PYTHON) -m PyInstaller packaging/karstlab_gui.spec --noconfirm
