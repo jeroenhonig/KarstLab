@@ -13,12 +13,21 @@ from karstlab.data.schemas import AnalysisParams, Locale, ProjectFile
 
 PROJECT_FILENAME = "project.karstlab"
 PIPELINE_RESULT_FILENAME = "pipeline_result.json"
-STATISTICS_FILENAME = "analysis_statistics.json"
-MAP_FILENAME = "interactive_map.html"
+STATISTICS_FILENAME = "statistics.json"
+MAP_FILENAME = "index.html"
 REPORT_FILENAME = "report.html"
 ASSEMBLED_DEM_FILENAME = "assembled_dem.tif"
 
-PROJECT_DIRECTORIES = ("input", "output", "export", "map", "cache", "logs")
+PROJECT_DIRECTORIES = (
+    "input",
+    "output",
+    "output/rasters",
+    "output/vectors",
+    "output/export",
+    "map",
+    "cache",
+    "logs",
+)
 
 CANONICAL_FILENAMES = {
     "project": PROJECT_FILENAME,
@@ -27,6 +36,11 @@ CANONICAL_FILENAMES = {
     "interactive_map": MAP_FILENAME,
     "report": REPORT_FILENAME,
     "assembled_dem": ASSEMBLED_DEM_FILENAME,
+    "top_depressions_gpx": "Top_Depressions_{slug}.gpx",
+    "dolines_geojson": "dolines_{slug}.geojson",
+    "dolines_kml": "dolines_{slug}.kml",
+    "contours_geojson": "contours_{slug}.geojson",
+    "contours_kml": "contours_{slug}.kml",
 }
 
 
@@ -35,6 +49,8 @@ class ProjectPaths:
     project_dir: Path
     input_dir: Path
     output_dir: Path
+    rasters_dir: Path
+    vectors_dir: Path
     export_dir: Path
     map_dir: Path
     cache_dir: Path
@@ -56,7 +72,9 @@ def build_project_paths(base_dir: Path, slug: str) -> ProjectPaths:
         project_dir=project_dir,
         input_dir=project_dir / "input",
         output_dir=project_dir / "output",
-        export_dir=project_dir / "export",
+        rasters_dir=project_dir / "output" / "rasters",
+        vectors_dir=project_dir / "output" / "vectors",
+        export_dir=project_dir / "output" / "export",
         map_dir=project_dir / "map",
         cache_dir=project_dir / "cache",
         logs_dir=project_dir / "logs",
@@ -100,6 +118,8 @@ def create_project(
     for directory in (
         paths.input_dir,
         paths.output_dir,
+        paths.rasters_dir,
+        paths.vectors_dir,
         paths.export_dir,
         paths.map_dir,
         paths.cache_dir,
@@ -119,6 +139,7 @@ def create_project(
         export_dir=paths.export_dir,
         map_dir=paths.map_dir,
         cache_dir=paths.cache_dir,
+        logs_dir=paths.logs_dir,
         land_profile=land_profile,
         crs_analysis=crs_analysis,
         language=language,
@@ -149,4 +170,3 @@ def save_project(
 def load_project(path: Path) -> ProjectFile:
     payload = json.loads(path.read_text(encoding="utf-8"))
     return ProjectFile.model_validate(payload)
-

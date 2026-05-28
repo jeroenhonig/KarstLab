@@ -260,6 +260,7 @@ class ProjectFile(StrictModel):
     export_dir: Path
     map_dir: Path
     cache_dir: Path
+    logs_dir: Path
     land_profile: str = Field(default="generic", pattern=r"^[a-z][a-z0-9_-]*$")
     crs_analysis: str = Field(pattern=r"^EPSG:\d+$")
     crs_display: str = Field(default="EPSG:4326", pattern=r"^EPSG:\d+$")

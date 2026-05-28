@@ -43,15 +43,15 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - [x] Claude Code contract review.
 - [x] Address contract review findings.
 - [x] Add project directory creator.
+- [x] Address project directory review blockers.
 - [ ] Add land profile JSON files.
 
 ## TODO Queue
 
-1. Ask Claude Code to review the project directory creator and canonical filenames.
-2. Address Claude Code findings on project I/O.
-3. Add land profile JSON files.
-4. Add synthetic DEM fixture and first raster I/O tests.
-5. Verify GDAL/PROJ and WhiteboxTools on the active machine.
+1. Ask Claude Code for a short follow-up review of the project I/O blocker fixes.
+2. Add land profile JSON files.
+3. Add synthetic DEM fixture and first raster I/O tests.
+4. Verify GDAL/PROJ and WhiteboxTools on the active machine.
 
 ## Blockers
 
@@ -74,7 +74,8 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28T13:20:00+02:00 | Phase 1 contracts | Added shared Pydantic v2 contracts in `src/karstlab/data/schemas.py`, exported data-layer model imports, schema validation tests, and `.pyinstaller/` clean target | Validation: `make PYTHON=.venv/bin/python test` pass (14 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
 - 2026-05-28T13:45:00+02:00 | Phase 1 contract review fixes | Aligned persisted contract field names with architecture docs, switched schema versions to `1.0.0`, added pipeline version/CRS/timestamp/status/warning fields, removed unused GeoJSON alias, and added strict/round-trip/edge-case tests | Validation: `make PYTHON=.venv/bin/python test` pass (22 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
 - 2026-05-28T14:05:00+02:00 | Phase 1 project I/O | Added project slugging, canonical directory/path constants, project creation, atomic project save/load, and canonical output filenames | Validation: `make PYTHON=.venv/bin/python test` pass (30 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
+- 2026-05-28T14:25:00+02:00 | Phase 1 project I/O review fixes | Moved exports to `output/export`, added `output/rasters` and `output/vectors`, changed map output to `map/index.html`, renamed statistics output to `statistics.json`, persisted `logs_dir`, expanded canonical filename coverage, and added overwrite/load-error/path tests | Validation: `make PYTHON=.venv/bin/python test` pass (33 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
 
 ## Next Action
 
-Ask Claude Code to review the project directory creator and canonical filenames before implementing land profile JSON files.
+Ask Claude Code for a short follow-up review of the project I/O blocker fixes before implementing land profile JSON files.

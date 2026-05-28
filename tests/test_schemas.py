@@ -161,9 +161,10 @@ def test_project_file_contains_required_directories() -> None:
         project_dir=Path("/tmp/trou-du-vent"),
         input_dir=Path("/tmp/trou-du-vent/input"),
         output_dir=Path("/tmp/trou-du-vent/output"),
-        export_dir=Path("/tmp/trou-du-vent/export"),
+        export_dir=Path("/tmp/trou-du-vent/output/export"),
         map_dir=Path("/tmp/trou-du-vent/map"),
         cache_dir=Path("/tmp/trou-du-vent/cache"),
+        logs_dir=Path("/tmp/trou-du-vent/logs"),
         crs_analysis="EPSG:2154",
     )
 
@@ -228,9 +229,10 @@ def test_datetime_fields_accept_timezone_aware_values() -> None:
         project_dir=Path("/tmp/aven-test"),
         input_dir=Path("/tmp/aven-test/input"),
         output_dir=Path("/tmp/aven-test/output"),
-        export_dir=Path("/tmp/aven-test/export"),
+        export_dir=Path("/tmp/aven-test/output/export"),
         map_dir=Path("/tmp/aven-test/map"),
         cache_dir=Path("/tmp/aven-test/cache"),
+        logs_dir=Path("/tmp/aven-test/logs"),
         crs_analysis="EPSG:2154",
     )
 
@@ -266,9 +268,10 @@ def test_project_file_rejects_invalid_slug_patterns() -> None:
             project_dir=Path("/tmp/invalid"),
             input_dir=Path("/tmp/invalid/input"),
             output_dir=Path("/tmp/invalid/output"),
-            export_dir=Path("/tmp/invalid/export"),
+            export_dir=Path("/tmp/invalid/output/export"),
             map_dir=Path("/tmp/invalid/map"),
             cache_dir=Path("/tmp/invalid/cache"),
+            logs_dir=Path("/tmp/invalid/logs"),
             crs_analysis="EPSG:2154",
         )
 
@@ -293,9 +296,10 @@ def test_round_trip_json_serialization_for_persisted_contracts() -> None:
         project_dir=Path("/tmp/trou-du-vent"),
         input_dir=Path("/tmp/trou-du-vent/input"),
         output_dir=Path("/tmp/trou-du-vent/output"),
-        export_dir=Path("/tmp/trou-du-vent/export"),
+        export_dir=Path("/tmp/trou-du-vent/output/export"),
         map_dir=Path("/tmp/trou-du-vent/map"),
         cache_dir=Path("/tmp/trou-du-vent/cache"),
+        logs_dir=Path("/tmp/trou-du-vent/logs"),
         crs_analysis="EPSG:2154",
     )
     settings = UserSettings(
