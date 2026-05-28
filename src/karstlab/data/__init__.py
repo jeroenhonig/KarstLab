@@ -1,5 +1,6 @@
 """Data-layer models and I/O helpers."""
 
+from karstlab.data.crs import detect_crs, is_metric_crs, reproject_raster, to_metric, to_wgs84
 from karstlab.data.land_profiles import (
     GENERIC_PROFILE_ID,
     LandProfileError,
@@ -56,6 +57,7 @@ __all__ = [
     "UserSettings",
     "DemData",
     "DemMetadata",
+    "detect_crs",
     "GENERIC_PROFILE_ID",
     "LandProfileError",
     "CANONICAL_FILENAMES",
@@ -71,7 +73,11 @@ __all__ = [
     "load_all_land_profiles",
     "load_land_profile",
     "load_land_profile_from_path",
+    "is_metric_crs",
     "read_band",
     "read_dem",
+    "reproject_raster",
     "save_geotiff",
+    "to_metric",
+    "to_wgs84",
 ]

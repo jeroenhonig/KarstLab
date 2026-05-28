@@ -48,13 +48,14 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - [x] Add JSON Schema resource files.
 - [x] Add synthetic DEM fixture.
 - [x] Add first raster I/O tests.
+- [x] Add CRS detection/reprojection helpers.
 
 ## TODO Queue
 
-1. Ask Claude Code to review synthetic DEM fixture and raster I/O helpers.
-2. Address Claude Code findings on raster I/O.
-3. Add CRS detection/reprojection tests and helpers.
-4. Verify WhiteboxTools on the active machine.
+1. Ask Claude Code to review CRS detection/reprojection helpers.
+2. Address Claude Code findings on CRS helpers.
+3. Verify WhiteboxTools on the active machine.
+4. Add VRT assembly tests and helpers.
 
 ## Blockers
 
@@ -80,7 +81,8 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28T14:25:00+02:00 | Phase 1 project I/O review fixes | Moved exports to `output/export`, added `output/rasters` and `output/vectors`, changed map output to `map/index.html`, renamed statistics output to `statistics.json`, persisted `logs_dir`, expanded canonical filename coverage, and added overwrite/load-error/path tests | Validation: `make PYTHON=.venv/bin/python test` pass (33 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
 - 2026-05-28T14:45:00+02:00 | Phase 1 land profiles | Added bundled `fr`, `nl`, `be`, and `generic` land profile JSON files, land profile loader/fallback helpers, and generated JSON Schema resources for land profile, project, and user settings | Validation: `make PYTHON=.venv/bin/python test` pass (41 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
 - 2026-05-28T15:05:00+02:00 | Phase 1 raster I/O start | Added synthetic 100x100 DEM fixture with three known depressions, GeoTIFF read/write helpers, raster metadata contracts, raster I/O tests, and mypy config for geospatial packages without stubs | Validation: `make PYTHON=.venv/bin/python test` pass (44 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
+- 2026-05-28T15:25:00+02:00 | Phase 1 CRS helpers | Added CRS detection, metric CRS checks, raster reprojection to metric CRS and WGS84, and tests covering missing CRS and synthetic DEM reprojection | Validation: `make PYTHON=.venv/bin/python test` pass (50 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 
 ## Next Action
 
-Ask Claude Code to review synthetic DEM fixture and raster I/O helpers before CRS/reprojection work.
+Ask Claude Code to review CRS detection/reprojection helpers before VRT assembly work.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 from rasterio.crs import CRS
 
 from karstlab.data.raster_io import read_band, read_dem, save_geotiff
@@ -34,7 +35,7 @@ def test_read_dem_returns_array_and_metadata(tmp_path) -> None:  # type: ignore[
 def test_read_band_returns_single_raster_band(tmp_path) -> None:  # type: ignore[no-untyped-def]
     dem_path = write_synthetic_dem(tmp_path / "synthetic_dem.tif")
 
-    band = read_band(dem_path)
+    band = read_band(dem_path, band=1)
 
     assert band.shape == (100, 100)
     assert np.isclose(band[0, 0], SYNTHETIC_DEM_NODATA)
@@ -57,3 +58,13 @@ def test_save_geotiff_round_trip_preserves_metadata(tmp_path) -> None:  # type: 
     assert loaded.metadata.crs == CRS.from_epsg(2154)
     assert loaded.metadata.nodata == SYNTHETIC_DEM_NODATA
 
+
+def test_save_geotiff_rejects_multiband_arrays(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(ValueError, match="2D single-band"):
+        save_geotiff(
+            tmp_path / "invalid.tif",
+            np.zeros((2, 10, 10), dtype=np.float32),
+            crs=CRS.from_epsg(2154),
+            transform=SYNTHETIC_DEM_TRANSFORM,
+            nodata=SYNTHETIC_DEM_NODATA,
+        )

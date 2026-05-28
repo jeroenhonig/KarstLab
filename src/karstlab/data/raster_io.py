@@ -50,7 +50,7 @@ def read_dem(path: Path, *, band: int = 1) -> DemData:
     return DemData(array=array, metadata=metadata)
 
 
-def read_band(path: Path, band: int = 1) -> np.ndarray:
+def read_band(path: Path, *, band: int = 1) -> np.ndarray:
     return read_dem(path, band=band).array
 
 
@@ -64,6 +64,9 @@ def save_geotiff(
     dtype: str | None = None,
     extra_profile: dict[str, Any] | None = None,
 ) -> Path:
+    if array.ndim != 2:
+        raise ValueError("save_geotiff expects a 2D single-band array")
+
     path.parent.mkdir(parents=True, exist_ok=True)
     target_dtype = dtype or str(array.dtype)
     profile: dict[str, Any] = {
@@ -83,4 +86,3 @@ def save_geotiff(
         dataset.write(array.astype(target_dtype, copy=False), 1)
 
     return path
-
