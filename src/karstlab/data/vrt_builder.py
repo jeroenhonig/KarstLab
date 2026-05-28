@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -40,14 +41,18 @@ GDAL_DTYPE_BY_RASTERIO = {
     "float32": "Float32",
     "float64": "Float64",
 }
+GRID_ALIGNMENT_TOLERANCE = 1e-6
 
 
 def assemble_vrt(tile_paths: list[Path], vrt_path: Path) -> VrtMosaic:
     if not tile_paths:
         raise ValueError("assemble_vrt requires at least one tile")
 
-    datasets = [rasterio.open(path) for path in tile_paths]
+    datasets: list[rasterio.io.DatasetReader] = []
     try:
+        for path in tile_paths:
+            datasets.append(rasterio.open(path))
+
         reference = datasets[0]
         _validate_datasets(datasets)
 
@@ -66,8 +71,16 @@ def assemble_vrt(tile_paths: list[Path], vrt_path: Path) -> VrtMosaic:
                 path=Path(dataset.name),
                 width=dataset.width,
                 height=dataset.height,
-                col_off=round((dataset.bounds.left - min_x) / xres),
-                row_off=round((max_y - dataset.bounds.top) / yres),
+                col_off=_grid_offset(
+                    (dataset.bounds.left - min_x) / xres,
+                    dataset_name=dataset.name,
+                    axis="column",
+                ),
+                row_off=_grid_offset(
+                    (max_y - dataset.bounds.top) / yres,
+                    dataset_name=dataset.name,
+                    axis="row",
+                ),
             )
             for dataset in datasets
         )
@@ -144,7 +157,7 @@ def _write_vrt(mosaic: VrtMosaic, *, gdal_dtype: str) -> None:
 
 
 def _source_xml(vrt_path: Path, tile: VrtTile, *, gdal_dtype: str) -> str:
-    source_path = escape(str(tile.path.relative_to(vrt_path.parent)))
+    source_path = escape(os.path.relpath(tile.path, vrt_path.parent))
     source_properties = (
         f'<SourceProperties RasterXSize="{tile.width}" RasterYSize="{tile.height}" '
         f'DataType="{gdal_dtype}" BlockXSize="{tile.width}" BlockYSize="1" />'
@@ -172,3 +185,12 @@ def _gdal_dtype(rasterio_dtype: str) -> str:
     if gdal_dtype is None:
         raise ValueError(f"Unsupported VRT dtype: {rasterio_dtype}")
     return gdal_dtype
+
+
+def _grid_offset(raw_offset: float, *, dataset_name: str, axis: str) -> int:
+    rounded = round(raw_offset)
+    if abs(raw_offset - rounded) > GRID_ALIGNMENT_TOLERANCE:
+        raise ValueError(
+            f"Tile {dataset_name} is not grid-aligned ({axis} offset {raw_offset})"
+        )
+    return rounded

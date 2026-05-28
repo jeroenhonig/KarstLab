@@ -40,6 +40,22 @@ def test_assemble_vrt_builds_two_tile_mosaic(tmp_path) -> None:  # type: ignore[
     assert loaded.metadata.crs == SYNTHETIC_DEM_CRS
 
 
+def test_assemble_vrt_supports_tiles_outside_vrt_directory(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    tile = np.full((5, 5), 4.0, dtype=np.float32)
+    tile_path = save_geotiff(
+        tmp_path / "tiles" / "tile.tif",
+        tile,
+        crs=SYNTHETIC_DEM_CRS,
+        transform=from_origin(0.0, 5.0, 1.0, 1.0),
+        nodata=SYNTHETIC_DEM_NODATA,
+    )
+
+    mosaic = assemble_vrt([tile_path], tmp_path / "vrt" / "mosaic.vrt")
+    loaded = read_dem(mosaic.path)
+
+    np.testing.assert_allclose(loaded.array, tile)
+
+
 def test_assemble_geotiff_exports_vrt_to_tif(tmp_path) -> None:  # type: ignore[no-untyped-def]
     tile = np.full((5, 5), 3.0, dtype=np.float32)
     tile_path = save_geotiff(
@@ -82,3 +98,22 @@ def test_assemble_vrt_rejects_mismatched_crs(tmp_path) -> None:  # type: ignore[
     with pytest.raises(ValueError, match="same CRS"):
         assemble_vrt([first, second], tmp_path / "bad.vrt")
 
+
+def test_assemble_vrt_rejects_misaligned_tiles(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    first = save_geotiff(
+        tmp_path / "first.tif",
+        np.ones((5, 5), dtype=np.float32),
+        crs=SYNTHETIC_DEM_CRS,
+        transform=from_origin(0.0, 5.0, 1.0, 1.0),
+        nodata=SYNTHETIC_DEM_NODATA,
+    )
+    second = save_geotiff(
+        tmp_path / "second.tif",
+        np.ones((5, 5), dtype=np.float32),
+        crs=SYNTHETIC_DEM_CRS,
+        transform=from_origin(5.25, 5.0, 1.0, 1.0),
+        nodata=SYNTHETIC_DEM_NODATA,
+    )
+
+    with pytest.raises(ValueError, match="grid-aligned"):
+        assemble_vrt([first, second], tmp_path / "bad.vrt")
