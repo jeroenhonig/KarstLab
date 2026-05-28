@@ -21,13 +21,13 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 
 ## Current Phase
 
-- Phase: Phase 1 - Shared Contracts
-- Objective: Define the Pydantic contracts that all later data, pipeline, GUI, and export code will import.
+- Phase: Phase 2 - WhiteboxTools Hydrology
+- Objective: Build the external WhiteboxTools adapter and first hydrology orchestration wrapper for DEM breach/fill, D8 pointer, flow accumulation, and stream extraction.
 - Exit criteria:
-  - `AnalysisParams`, `ProjectFile`, `UserSettings`, `LandProfile`, `DepressionResult`, and `PipelineResult` exist.
-  - JSON Schema export works for project, settings, and land profiles.
-  - Schema validation tests pass.
-  - Claude Code reviews the contracts before project directory creation starts.
+  - WhiteboxTools adapter detects executable and version.
+  - Hydrology wrapper produces filled DEM, D8 pointer, flow accumulation, and stream rasters.
+  - Unit tests cover adapter command forwarding and error handling.
+  - Local smoke proves the active WhiteboxTools binary can process the synthetic DEM.
 
 ## Phase Checklist
 
@@ -53,17 +53,23 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - [x] Address VRT assembly review findings.
 - [x] Verify WhiteboxTools on the active machine.
 - [x] Add vector export/import tests and helpers.
+- [x] Claude Code vector I/O review and fixes.
+- [x] Add WhiteboxTools adapter.
+- [x] Add first hydrology wrapper.
+- [x] Run local WhiteboxTools hydrology smoke on synthetic DEM.
 
 ## TODO Queue
 
-1. Ask Claude Code to verify vector I/O review fixes.
-2. Start Phase 2 WhiteboxTools adapter and hydrology wrapper after Claude confirms no blockers.
-3. Defer `contours_to_vector()` until contour generation exists in Phase 4.
+1. Ask Claude Code to review the first Phase 2 WhiteboxTools adapter and hydrology wrapper.
+2. Address Claude Code findings on the adapter/wrapper.
+3. Start DEM validator and terrain helpers after adapter review is clear.
+4. Defer `contours_to_vector()` until contour generation exists in Phase 4.
 
 ## Blockers
 
 - Windows packaging cannot be fully validated from the current macOS/Linux-like local environment unless a Windows runner or machine is provided.
 - The default shell `python3` is Python 3.14. Use `.venv/bin/python` or activate the Python 3.12 virtual environment for development commands.
+- WhiteboxTools `FillDepressions` panicked on the synthetic DEM with NoData during manual smoke. `BreachDepressionsLeastCost` works on the same DEM and remains the default fill/preconditioning path.
 
 ## Decisions
 
@@ -71,6 +77,7 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28: Claude Code is used for planning, architecture review, PR-style review, and isolated parallel work.
 - 2026-05-28: Sequential handoffs are required for shared files and risky changes; parallel work is allowed only with explicit file ownership.
 - 2026-05-28: v1.0.0 will be delivered through staged gates from v0.1.0 to v1.0.0.
+- 2026-05-28: Phase 2 hydrology uses `BreachDepressionsLeastCost` as the default DEM preconditioning command because it matches the architecture decision and succeeds on the synthetic DEM where `FillDepressions` panics.
 
 ## Checkpoints
 
@@ -90,7 +97,8 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28T16:30:00+02:00 | Phase 1 WhiteboxTools verification | Verified the Python wrapper can download and run the platform WhiteboxTools binary in the active Python 3.12 venv | Validation: `.venv/bin/python -c "from whitebox.whitebox_tools import WhiteboxTools; wbt=WhiteboxTools(); print(wbt.version())"` reports `WhiteboxTools v2.4.0`.
 - 2026-05-28T16:40:00+02:00 | Phase 1 vector I/O | Added WGS84 GeoJSON export, KML export for points/lines/polygons, GPX waypoint export, GPX waypoint import, and KML point import helpers | Validation: `make PYTHON=.venv/bin/python test` pass (61 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 - 2026-05-28T16:47:00+02:00 | Phase 1 vector I/O review fixes | Fixed non-mutating KML description generation, replaced fragile CRS string comparison with semantic pyproj CRS equality, and validated GPX geometry type before writing | Validation: `make PYTHON=.venv/bin/python test` pass (64 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
+- 2026-05-28T22:10:00+02:00 | Phase 2 Whitebox adapter start | Added `WhiteboxAdapter` with executable/version access, command forwarding, output/error checks, and `HydrologyAnalyzer` for breach/fill, D8 pointer, flow accumulation, and stream extraction | Validation: `make PYTHON=.venv/bin/python test` pass (70 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass; real WhiteboxTools smoke on synthetic DEM creates `dem_filled.tif`, `d8_pointer.tif`, `flow_accum.tif`, and `streams.tif`.
 
 ## Next Action
 
-Ask Claude Code to verify vector I/O review fixes before starting the Phase 2 WhiteboxTools adapter and hydrology wrapper.
+Ask Claude Code to review the first Phase 2 WhiteboxTools adapter and hydrology wrapper.
