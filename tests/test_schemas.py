@@ -9,11 +9,13 @@ from pydantic import ValidationError
 
 from karstlab.data.schemas import (
     AnalysisParams,
+    BoundingBox,
     DepressionResult,
     LandProfile,
     LayerConfig,
     PipelineResult,
     PipelineStatus,
+    PipelineStepResult,
     ProjectFile,
     UserSettings,
 )
@@ -160,12 +162,17 @@ def test_project_file_contains_required_directories() -> None:
         input_dir=Path("/tmp/trou-du-vent/input"),
         output_dir=Path("/tmp/trou-du-vent/output"),
         export_dir=Path("/tmp/trou-du-vent/export"),
+        map_dir=Path("/tmp/trou-du-vent/map"),
         cache_dir=Path("/tmp/trou-du-vent/cache"),
+        crs_analysis="EPSG:2154",
     )
 
-    assert project.schema_version == "1.0"
-    assert project.land_profile_id == "generic"
+    assert project.schema_version == "1.0.0"
+    assert project.pipeline_version == "1.0.0"
+    assert project.land_profile == "generic"
+    assert project.crs_display == "EPSG:4326"
     assert project.input_dir.name == "input"
+    assert project.map_dir.name == "map"
 
 
 def test_pipeline_result_limits_top_depressions_to_25() -> None:
@@ -173,7 +180,8 @@ def test_pipeline_result_limits_top_depressions_to_25() -> None:
         PipelineResult(
             project_id=uuid4(),
             status=PipelineStatus.SUCCESS,
-            params=AnalysisParams(),
+            land_profile="fr",
+            analysis_params=AnalysisParams(),
             input_dem_paths=[Path("input/dem.tif")],
             output_dir=Path("output"),
             top_depressions=[minimal_depression(rank=i + 1) for i in range(26)],
@@ -185,7 +193,8 @@ def test_failed_pipeline_requires_failed_step() -> None:
         PipelineResult(
             project_id=uuid4(),
             status=PipelineStatus.FAILED,
-            params=AnalysisParams(),
+            land_profile="fr",
+            analysis_params=AnalysisParams(),
             input_dem_paths=[Path("input/dem.tif")],
             output_dir=Path("output"),
         )
@@ -214,13 +223,93 @@ def test_datetime_fields_accept_timezone_aware_values() -> None:
     project = ProjectFile(
         name="Aven Test",
         slug="aven-test",
-        created_at=timestamp,
-        updated_at=timestamp,
+        created=timestamp,
+        modified=timestamp,
         project_dir=Path("/tmp/aven-test"),
         input_dir=Path("/tmp/aven-test/input"),
         output_dir=Path("/tmp/aven-test/output"),
         export_dir=Path("/tmp/aven-test/export"),
+        map_dir=Path("/tmp/aven-test/map"),
         cache_dir=Path("/tmp/aven-test/cache"),
+        crs_analysis="EPSG:2154",
     )
 
-    assert project.created_at == timestamp
+    assert project.created == timestamp
+
+
+def test_strict_models_reject_unknown_fields() -> None:
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        AnalysisParams.model_validate({"contour_interval_m": 5.0, "unknown": True})
+
+
+def test_pipeline_step_failed_status_requires_error_message() -> None:
+    with pytest.raises(ValidationError, match="failed steps require error_message"):
+        PipelineStepResult(step_id="fill_dem", status=PipelineStatus.FAILED)
+
+
+def test_pipeline_step_accepts_completed_status_and_warnings() -> None:
+    step = PipelineStepResult(
+        step_id="fill_dem",
+        status=PipelineStatus.COMPLETED,
+        warnings=["DEM contains edge artifacts"],
+    )
+
+    assert step.status == PipelineStatus.COMPLETED
+    assert step.warnings == ["DEM contains edge artifacts"]
+
+
+def test_project_file_rejects_invalid_slug_patterns() -> None:
+    with pytest.raises(ValidationError):
+        ProjectFile(
+            name="Invalid",
+            slug="Has Spaces",
+            project_dir=Path("/tmp/invalid"),
+            input_dir=Path("/tmp/invalid/input"),
+            output_dir=Path("/tmp/invalid/output"),
+            export_dir=Path("/tmp/invalid/export"),
+            map_dir=Path("/tmp/invalid/map"),
+            cache_dir=Path("/tmp/invalid/cache"),
+            crs_analysis="EPSG:2154",
+        )
+
+
+def test_bounding_box_rejects_invalid_extent() -> None:
+    with pytest.raises(ValidationError, match="min_x"):
+        BoundingBox(min_x=10.0, min_y=0.0, max_x=5.0, max_y=1.0, crs="EPSG:2154")
+
+
+def test_remote_poi_sources_require_url() -> None:
+    data = minimal_land_profile().model_dump(mode="json")
+    data["poi_sources"] = [{"name": "Remote caves", "type": "wfs"}]
+
+    with pytest.raises(ValidationError, match="url"):
+        LandProfile.model_validate(data)
+
+
+def test_round_trip_json_serialization_for_persisted_contracts() -> None:
+    project = ProjectFile(
+        name="Trou du Vent",
+        slug="trou-du-vent",
+        project_dir=Path("/tmp/trou-du-vent"),
+        input_dir=Path("/tmp/trou-du-vent/input"),
+        output_dir=Path("/tmp/trou-du-vent/output"),
+        export_dir=Path("/tmp/trou-du-vent/export"),
+        map_dir=Path("/tmp/trou-du-vent/map"),
+        cache_dir=Path("/tmp/trou-du-vent/cache"),
+        crs_analysis="EPSG:2154",
+    )
+    settings = UserSettings(
+        land_profile="fr",
+        crs_override="EPSG:2154",
+        last_project_dir=Path("/tmp"),
+    )
+    profile = minimal_land_profile()
+
+    assert ProjectFile.model_validate(project.model_dump(mode="json")) == project
+    assert UserSettings.model_validate(settings.model_dump(mode="json")) == settings
+    assert LandProfile.model_validate(profile.model_dump(mode="json")) == profile
+
+
+def test_user_settings_recent_projects_limit() -> None:
+    with pytest.raises(ValidationError):
+        UserSettings(recent_projects=[Path(f"/tmp/project-{index}") for index in range(11)])

@@ -40,18 +40,18 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - [x] Run local smoke validation.
 - [x] Install/verify missing development tools (`mypy`, `PyInstaller`).
 - [x] Initialize git repository.
-- [ ] Claude Code contract review.
+- [x] Claude Code contract review.
+- [x] Address contract review findings.
 - [ ] Add project directory creator.
 - [ ] Add land profile JSON files.
 
 ## TODO Queue
 
-1. Ask Claude Code to review the Phase 1 shared Pydantic contracts.
-2. Address Claude Code findings on the contracts.
-3. Add project directory creator and canonical filenames.
-4. Add land profile JSON files.
-5. Add synthetic DEM fixture and first raster I/O tests.
-6. Verify GDAL/PROJ and WhiteboxTools on the active machine.
+1. Ask Claude Code for a short follow-up review of the contract fixes.
+2. Add project directory creator and canonical filenames.
+3. Add land profile JSON files.
+4. Add synthetic DEM fixture and first raster I/O tests.
+5. Verify GDAL/PROJ and WhiteboxTools on the active machine.
 
 ## Blockers
 
@@ -72,7 +72,8 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28T12:35:00+02:00 | Phase 0 review fixes | Applied Claude review feedback: Python 3.12 venv, dynamic version, contextily dependency, PyInstaller spec path fix, repo-local PyInstaller cache, typed pytest fixture, `py.typed`, README target docs, UPX disabled, git initialized | Validation: `.venv/bin/python -m pip install -e ".[dev,package]"` pass; `make PYTHON=.venv/bin/python test` pass (2 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python doctor` pass; `make PYTHON=.venv/bin/python package` pass.
 - 2026-05-28T12:40:00+02:00 | Phase 0 commit | Created initial repository commit `1e63253` for v0.1.0 skeleton and documentation after purging third-party binary/PDF assets from git history | Validation: `git filter-branch` removed `ARIS Lidar Prospector - Documentation v3a.pdf` from all commits; `git rev-list --objects --all` shows no PDF/EXE assets; `find . -maxdepth 2 -name "*.pdf" -o -name "*.exe"` shows no PDF/EXE assets.
 - 2026-05-28T13:20:00+02:00 | Phase 1 contracts | Added shared Pydantic v2 contracts in `src/karstlab/data/schemas.py`, exported data-layer model imports, schema validation tests, and `.pyinstaller/` clean target | Validation: `make PYTHON=.venv/bin/python test` pass (14 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
+- 2026-05-28T13:45:00+02:00 | Phase 1 contract review fixes | Aligned persisted contract field names with architecture docs, switched schema versions to `1.0.0`, added pipeline version/CRS/timestamp/status/warning fields, removed unused GeoJSON alias, and added strict/round-trip/edge-case tests | Validation: `make PYTHON=.venv/bin/python test` pass (22 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
 
 ## Next Action
 
-Ask Claude Code to review the shared Pydantic contracts before implementing the project directory creator.
+Ask Claude Code for a short follow-up review of the contract fixes before implementing the project directory creator.

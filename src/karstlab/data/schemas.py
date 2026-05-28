@@ -33,6 +33,7 @@ class PipelineStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     SUCCESS = "success"
+    COMPLETED = "completed"
     FAILED = "failed"
     SKIPPED = "skipped"
 
@@ -181,7 +182,6 @@ class DepressionQualityFlags(StrictModel):
 
 
 GeoJsonGeometry = dict[str, Any]
-GeoJsonFeature = dict[str, Any]
 
 
 class DepressionResult(StrictModel):
@@ -212,6 +212,7 @@ class PipelineStepResult(StrictModel):
     started_at: datetime | None = None
     finished_at: datetime | None = None
     output_paths: list[Path] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
     error_message: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -225,7 +226,10 @@ class PipelineStepResult(StrictModel):
 class PipelineResult(StrictModel):
     project_id: UUID
     status: PipelineStatus
-    params: AnalysisParams
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    finished_at: datetime | None = None
+    land_profile: str = Field(pattern=r"^[a-z][a-z0-9_-]*$")
+    analysis_params: AnalysisParams
     input_dem_paths: list[Path] = Field(min_length=1)
     output_dir: Path
     depressions: list[DepressionResult] = Field(default_factory=list)
@@ -243,30 +247,37 @@ class PipelineResult(StrictModel):
 
 
 class ProjectFile(StrictModel):
-    schema_version: Literal["1.0"] = "1.0"
+    schema_version: Literal["1.0.0"] = "1.0.0"
+    pipeline_version: Literal["1.0.0"] = "1.0.0"
     id: UUID = Field(default_factory=uuid4)
     name: str = Field(min_length=1)
     slug: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    modified: datetime = Field(default_factory=lambda: datetime.now(UTC))
     project_dir: Path
     input_dir: Path
     output_dir: Path
     export_dir: Path
+    map_dir: Path
     cache_dir: Path
-    land_profile_id: str = Field(default="generic", pattern=r"^[a-z][a-z0-9_-]*$")
+    land_profile: str = Field(default="generic", pattern=r"^[a-z][a-z0-9_-]*$")
+    crs_analysis: str = Field(pattern=r"^EPSG:\d+$")
+    crs_display: str = Field(default="EPSG:4326", pattern=r"^EPSG:\d+$")
     language: Locale = Locale.EN
-    settings: AnalysisParams = Field(default_factory=AnalysisParams)
+    analysis_params: AnalysisParams = Field(default_factory=AnalysisParams)
     dem_paths: list[Path] = Field(default_factory=list)
     marker_paths: list[Path] = Field(default_factory=list)
     last_pipeline_result: Path | None = None
 
 
 class UserSettings(StrictModel):
-    schema_version: Literal["1.0"] = "1.0"
+    schema_version: Literal["1.0.0"] = "1.0.0"
     language: Locale = Locale.EN
-    default_land_profile_id: str = Field(default="generic", pattern=r"^[a-z][a-z0-9_-]*$")
+    land_profile: str = Field(default="generic", pattern=r"^[a-z][a-z0-9_-]*$")
     recent_projects: list[Path] = Field(default_factory=list, max_length=10)
-    check_for_updates: bool = True
-    whitebox_tools_path: Path | None = None
-    default_analysis_params: AnalysisParams = Field(default_factory=AnalysisParams)
+    update_check: bool = True
+    whitebox_path: Path | None = None
+    crs_override: str | None = Field(default=None, pattern=r"^EPSG:\d+$")
+    large_dem_threshold_mb: int = Field(default=500, gt=0)
+    last_project_dir: Path | None = None
+    analysis_params: AnalysisParams = Field(default_factory=AnalysisParams)
