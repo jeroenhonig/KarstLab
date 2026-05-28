@@ -20,4 +20,4 @@ package:
 	PYINSTALLER_CONFIG_DIR=.pyinstaller $(PYTHON) -m PyInstaller packaging/karstlab_gui.spec --noconfirm
 
 clean:
-	rm -rf .mypy_cache .pytest_cache .ruff_cache build dist
+	rm -rf .mypy_cache .pytest_cache .ruff_cache .pyinstaller build dist

@@ -21,34 +21,37 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 
 ## Current Phase
 
-- Phase: Phase 0 - Setup And Packaging Spike
-- Objective: Turn the documentation-only repository into a Python application skeleton with early dependency and packaging validation.
+- Phase: Phase 1 - Shared Contracts
+- Objective: Define the Pydantic contracts that all later data, pipeline, GUI, and export code will import.
 - Exit criteria:
-  - Python package skeleton exists.
-  - Tests/lint commands exist.
-  - Synthetic DEM fixture exists.
-  - WhiteboxTools and GDAL/PROJ packaging risks are verified or documented.
+  - `AnalysisParams`, `ProjectFile`, `UserSettings`, `LandProfile`, `DepressionResult`, and `PipelineResult` exist.
+  - JSON Schema export works for project, settings, and land profiles.
+  - Schema validation tests pass.
+  - Claude Code reviews the contracts before project directory creation starts.
 
 ## Phase Checklist
 
 - [x] Capture agent orchestration workflow.
 - [x] Capture v1.0.0 release gates.
 - [x] Create Python 3.12+ project skeleton.
-- [ ] Add shared Pydantic contracts.
+- [x] Add shared Pydantic contracts.
 - [ ] Add synthetic DEM fixture.
 - [ ] Add initial tests.
 - [x] Run local smoke validation.
 - [x] Install/verify missing development tools (`mypy`, `PyInstaller`).
 - [x] Initialize git repository.
+- [ ] Claude Code contract review.
+- [ ] Add project directory creator.
+- [ ] Add land profile JSON files.
 
 ## TODO Queue
 
-1. Ask Claude Code for a short follow-up review of the v0.1.0 review fixes.
-2. Add Pydantic schemas for shared contracts.
-3. Add synthetic DEM fixture and first raster I/O tests.
-4. Add raster I/O implementation.
-5. Verify GDAL/PROJ and WhiteboxTools on the active machine.
-6. Expand packaging spike to include GDAL/PROJ and WhiteboxTools.
+1. Ask Claude Code to review the Phase 1 shared Pydantic contracts.
+2. Address Claude Code findings on the contracts.
+3. Add project directory creator and canonical filenames.
+4. Add land profile JSON files.
+5. Add synthetic DEM fixture and first raster I/O tests.
+6. Verify GDAL/PROJ and WhiteboxTools on the active machine.
 
 ## Blockers
 
@@ -68,7 +71,8 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28T12:15:00+02:00 | Phase 0 | Added Python package skeleton, CLI doctor command, GUI packaging spike entrypoint, Makefile, pyproject, smoke tests, README, gitignore, and PyInstaller spec stub | Validation: `make test` pass (2 tests); `make lint` pass; `make doctor` pass; `make typecheck` blocked by missing mypy; `make package` blocked by missing PyInstaller.
 - 2026-05-28T12:35:00+02:00 | Phase 0 review fixes | Applied Claude review feedback: Python 3.12 venv, dynamic version, contextily dependency, PyInstaller spec path fix, repo-local PyInstaller cache, typed pytest fixture, `py.typed`, README target docs, UPX disabled, git initialized | Validation: `.venv/bin/python -m pip install -e ".[dev,package]"` pass; `make PYTHON=.venv/bin/python test` pass (2 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python doctor` pass; `make PYTHON=.venv/bin/python package` pass.
 - 2026-05-28T12:40:00+02:00 | Phase 0 commit | Created initial repository commit `1e63253` for v0.1.0 skeleton and documentation after purging third-party binary/PDF assets from git history | Validation: `git filter-branch` removed `ARIS Lidar Prospector - Documentation v3a.pdf` from all commits; `git rev-list --objects --all` shows no PDF/EXE assets; `find . -maxdepth 2 -name "*.pdf" -o -name "*.exe"` shows no PDF/EXE assets.
+- 2026-05-28T13:20:00+02:00 | Phase 1 contracts | Added shared Pydantic v2 contracts in `src/karstlab/data/schemas.py`, exported data-layer model imports, schema validation tests, and `.pyinstaller/` clean target | Validation: `make PYTHON=.venv/bin/python test` pass (14 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
 
 ## Next Action
 
-Ask Claude Code for a short follow-up review of the v0.1.0 review fixes before moving to Phase 1 shared contracts.
+Ask Claude Code to review the shared Pydantic contracts before implementing the project directory creator.
