@@ -38,6 +38,7 @@ from karstlab.data.schemas import (
     ProjectFile,
     UserSettings,
 )
+from karstlab.data.vector_io import read_gpx_waypoints, read_kml_points, to_geojson, to_gpx, to_kml
 from karstlab.data.vrt_builder import VrtMosaic, VrtTile, assemble_geotiff, assemble_vrt
 
 __all__ = [
@@ -81,8 +82,13 @@ __all__ = [
     "is_metric_crs",
     "read_band",
     "read_dem",
+    "read_gpx_waypoints",
+    "read_kml_points",
     "reproject_raster",
     "save_geotiff",
     "to_metric",
+    "to_geojson",
+    "to_gpx",
+    "to_kml",
     "to_wgs84",
 ]

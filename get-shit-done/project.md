@@ -50,13 +50,16 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - [x] Add first raster I/O tests.
 - [x] Add CRS detection/reprojection helpers.
 - [x] Add VRT assembly tests and helpers.
+- [x] Address VRT assembly review findings.
+- [x] Verify WhiteboxTools on the active machine.
+- [x] Add vector export/import tests and helpers.
 
 ## TODO Queue
 
-1. Ask Claude Code to review VRT assembly helpers.
-2. Address Claude Code findings on VRT assembly.
-3. Verify WhiteboxTools on the active machine.
-4. Add vector export/import tests and helpers.
+1. Ask Claude Code to review vector I/O helpers.
+2. Address Claude Code findings on vector I/O.
+3. Decide whether to add `contours_to_vector()` now or defer to contour generation in Phase 4.
+4. Start Phase 2 WhiteboxTools adapter and hydrology wrapper.
 
 ## Blockers
 
@@ -84,7 +87,10 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28T15:05:00+02:00 | Phase 1 raster I/O start | Added synthetic 100x100 DEM fixture with three known depressions, GeoTIFF read/write helpers, raster metadata contracts, raster I/O tests, and mypy config for geospatial packages without stubs | Validation: `make PYTHON=.venv/bin/python test` pass (44 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 - 2026-05-28T15:25:00+02:00 | Phase 1 CRS helpers | Added CRS detection, metric CRS checks, raster reprojection to metric CRS and WGS84, and tests covering missing CRS and synthetic DEM reprojection | Validation: `make PYTHON=.venv/bin/python test` pass (50 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 - 2026-05-28T15:45:00+02:00 | Phase 1 VRT assembly | Added GDAL VRT XML builder for north-up single-band DEM tiles, optional GeoTIFF export from VRT, and tests for two-tile mosaics, GeoTIFF export, empty input, and CRS mismatch | Validation: `make PYTHON=.venv/bin/python test` pass (55 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
+- 2026-05-28T16:20:00+02:00 | Phase 1 VRT review fixes | Added grid-alignment tolerance validation, safe dataset open/close handling, and VRT source paths that work for tiles outside the VRT directory | Validation: `make PYTHON=.venv/bin/python test` pass (57 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
+- 2026-05-28T16:30:00+02:00 | Phase 1 WhiteboxTools verification | Verified the Python wrapper can download and run the platform WhiteboxTools binary in the active Python 3.12 venv | Validation: `.venv/bin/python -c "from whitebox.whitebox_tools import WhiteboxTools; wbt=WhiteboxTools(); print(wbt.version())"` reports `WhiteboxTools v2.4.0`.
+- 2026-05-28T16:40:00+02:00 | Phase 1 vector I/O | Added WGS84 GeoJSON export, KML export for points/lines/polygons, GPX waypoint export, GPX waypoint import, and KML point import helpers | Validation: `make PYTHON=.venv/bin/python test` pass (61 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 
 ## Next Action
 
-Ask Claude Code to review VRT assembly helpers before WhiteboxTools verification and vector I/O work.
+Ask Claude Code to review vector I/O helpers before starting the Phase 2 WhiteboxTools adapter and hydrology wrapper.

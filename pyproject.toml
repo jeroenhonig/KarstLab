@@ -89,3 +89,7 @@ mypy_path = ["src", "."]
 [[tool.mypy.overrides]]
 module = ["affine", "rasterio", "rasterio.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["geopandas", "gpxpy", "gpxpy.*", "shapely", "shapely.*", "simplekml"]
+ignore_missing_imports = true
