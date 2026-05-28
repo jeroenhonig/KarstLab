@@ -1,0 +1,65 @@
+{
+  "id": "nl",
+  "version": "1.0.0",
+  "name": {
+    "en": "Netherlands",
+    "nl": "Nederland",
+    "fr": "Pays-Bas"
+  },
+  "default_crs": "EPSG:28992",
+  "common_crs": ["EPSG:28992", "EPSG:32631", "EPSG:32632"],
+  "dem_sources": [
+    {
+      "name": "AHN4",
+      "url": "https://www.pdok.nl/introductie/-/categories/applicaties/ahn4-downloads",
+      "description": {
+        "en": "Dutch national height model (0.5m resolution)",
+        "nl": "Actueel Hoogtebestand Nederland (0.5m resolutie)"
+      },
+      "resolution_m": 0.5
+    }
+  ],
+  "map_layers": {
+    "base": [
+      {
+        "name": "BRT Achtergrondkaart",
+        "type": "wmts",
+        "url": "https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0",
+        "layer": "standaard",
+        "attribution": "Kadaster"
+      },
+      {
+        "name": "OpenStreetMap",
+        "type": "tile",
+        "url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "attribution": "OpenStreetMap contributors"
+      },
+      {
+        "name": "Esri World Imagery",
+        "type": "tile",
+        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        "attribution": "Esri"
+      }
+    ],
+    "overlays": [
+      {
+        "name": "Geological Map",
+        "type": "wms",
+        "url": "https://geodata.nationaalgeoregister.nl/geologie/wms",
+        "layer": "lithostratigrafie",
+        "opacity": 0.5,
+        "attribution": "TNO-GDN"
+      }
+    ]
+  },
+  "poi_sources": [],
+  "analysis_defaults": {
+    "contour_interval_m": 1.0,
+    "stream_threshold_cells": 1000,
+    "doline_min_depth_m": 0.5,
+    "doline_max_depth_m": 50.0,
+    "doline_min_area_m2": 10.0,
+    "doline_max_area_m2": 100000.0
+  }
+}
+

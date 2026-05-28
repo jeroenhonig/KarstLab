@@ -1,5 +1,13 @@
 """Data-layer models and I/O helpers."""
 
+from karstlab.data.land_profiles import (
+    GENERIC_PROFILE_ID,
+    LandProfileError,
+    list_land_profile_ids,
+    load_all_land_profiles,
+    load_land_profile,
+    load_land_profile_from_path,
+)
 from karstlab.data.project_io import (
     CANONICAL_FILENAMES,
     PROJECT_DIRECTORIES,
@@ -45,6 +53,8 @@ __all__ = [
     "PoiSource",
     "ProjectFile",
     "UserSettings",
+    "GENERIC_PROFILE_ID",
+    "LandProfileError",
     "CANONICAL_FILENAMES",
     "PROJECT_DIRECTORIES",
     "ProjectPaths",
@@ -54,4 +64,8 @@ __all__ = [
     "load_project",
     "save_project",
     "slugify_project_name",
+    "list_land_profile_ids",
+    "load_all_land_profiles",
+    "load_land_profile",
+    "load_land_profile_from_path",
 ]

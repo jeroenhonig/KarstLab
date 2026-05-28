@@ -1,0 +1,108 @@
+{
+  "id": "fr",
+  "version": "1.0.0",
+  "name": {
+    "en": "France",
+    "nl": "Frankrijk",
+    "fr": "France"
+  },
+  "default_crs": "EPSG:2154",
+  "common_crs": ["EPSG:2154", "EPSG:32631", "EPSG:32632"],
+  "dem_sources": [
+    {
+      "name": "IGN LiDAR HD MNT",
+      "url": "https://geoservices.ign.fr/lidarhd",
+      "description": {
+        "en": "French national LiDAR HD bare-earth DEM (1m resolution)",
+        "fr": "Modele Numerique de Terrain LiDAR HD (resolution 1m)"
+      },
+      "resolution_m": 1.0
+    },
+    {
+      "name": "RGE ALTI",
+      "url": "https://geoservices.ign.fr/rgealti",
+      "description": {
+        "en": "French national DEM (1m and 5m resolution)",
+        "fr": "Modele Numerique de Terrain national (resolution 1m et 5m)"
+      },
+      "resolution_m": 1.0
+    }
+  ],
+  "map_layers": {
+    "base": [
+      {
+        "name": "Plan IGN",
+        "type": "wmts",
+        "url": "https://wxs.ign.fr/cartes/geoportail/wmts",
+        "layer": "GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2",
+        "attribution": "IGN"
+      },
+      {
+        "name": "OpenStreetMap",
+        "type": "tile",
+        "url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "attribution": "OpenStreetMap contributors"
+      },
+      {
+        "name": "Esri World Imagery",
+        "type": "tile",
+        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        "attribution": "Esri"
+      }
+    ],
+    "overlays": [
+      {
+        "name": "Geological Map (BRGM 1/50k)",
+        "type": "wms",
+        "url": "https://geoservices.brgm.fr/geologie",
+        "layer": "SCAN_H_GEOL50",
+        "opacity": 0.5,
+        "attribution": "BRGM"
+      },
+      {
+        "name": "Cadastre (PCI)",
+        "type": "wms",
+        "url": "https://inspire.cadastre.gouv.fr/scpc/wms",
+        "layer": "PARCELLES",
+        "opacity": 0.4,
+        "attribution": "DGFiP"
+      },
+      {
+        "name": "Karst Zones (BDLISA)",
+        "type": "wms",
+        "url": "https://bdlisa.eaufrance.fr/geoserver/wms",
+        "layer": "bdlisa:EntiteKarst",
+        "opacity": 0.5,
+        "attribution": "BRGM/EauFrance"
+      }
+    ]
+  },
+  "poi_sources": [
+    {
+      "name": "BRGM Cavites Georisques",
+      "type": "brgm_cavites",
+      "url": "https://georisques.gouv.fr/api/v1/cavites",
+      "departmental": true
+    },
+    {
+      "name": "Spelebase CAVECENTER",
+      "type": "spelebase",
+      "url": "https://www.spelebase.fr/api/cavites",
+      "departmental": true
+    },
+    {
+      "name": "Known Caves (France)",
+      "type": "geojson",
+      "path": "data/fr_caves.geojson"
+    }
+  ],
+  "analysis_defaults": {
+    "contour_interval_m": 5.0,
+    "stream_threshold_cells": 1000,
+    "doline_min_depth_m": 0.25,
+    "doline_max_depth_m": 40.0,
+    "doline_min_area_m2": 1.0,
+    "doline_max_area_m2": 60000.0
+  }
+}
+

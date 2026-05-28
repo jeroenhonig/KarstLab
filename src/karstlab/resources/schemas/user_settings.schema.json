@@ -1,0 +1,139 @@
+{
+  "$defs": {
+    "AnalysisParams": {
+      "additionalProperties": false,
+      "properties": {
+        "contour_interval_m": {
+          "default": 5.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Contour Interval M",
+          "type": "number"
+        },
+        "doline_max_area_m2": {
+          "default": 60000.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Doline Max Area M2",
+          "type": "number"
+        },
+        "doline_max_depth_m": {
+          "default": 40.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Doline Max Depth M",
+          "type": "number"
+        },
+        "doline_min_area_m2": {
+          "default": 1.0,
+          "minimum": 0.0,
+          "title": "Doline Min Area M2",
+          "type": "number"
+        },
+        "doline_min_depth_m": {
+          "default": 0.25,
+          "minimum": 0.0,
+          "title": "Doline Min Depth M",
+          "type": "number"
+        },
+        "stream_threshold_cells": {
+          "default": 1000,
+          "exclusiveMinimum": 0,
+          "title": "Stream Threshold Cells",
+          "type": "integer"
+        }
+      },
+      "title": "AnalysisParams",
+      "type": "object"
+    },
+    "Locale": {
+      "enum": [
+        "en",
+        "nl",
+        "fr"
+      ],
+      "title": "Locale",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "analysis_params": {
+      "$ref": "#/$defs/AnalysisParams"
+    },
+    "crs_override": {
+      "anyOf": [
+        {
+          "pattern": "^EPSG:\\d+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Crs Override"
+    },
+    "land_profile": {
+      "default": "generic",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "title": "Land Profile",
+      "type": "string"
+    },
+    "language": {
+      "$ref": "#/$defs/Locale",
+      "default": "en"
+    },
+    "large_dem_threshold_mb": {
+      "default": 500,
+      "exclusiveMinimum": 0,
+      "title": "Large Dem Threshold Mb",
+      "type": "integer"
+    },
+    "last_project_dir": {
+      "anyOf": [
+        {
+          "format": "path",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Project Dir"
+    },
+    "recent_projects": {
+      "items": {
+        "format": "path",
+        "type": "string"
+      },
+      "maxItems": 10,
+      "title": "Recent Projects",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "update_check": {
+      "default": true,
+      "title": "Update Check",
+      "type": "boolean"
+    },
+    "whitebox_path": {
+      "anyOf": [
+        {
+          "format": "path",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Whitebox Path"
+    }
+  },
+  "title": "UserSettings",
+  "type": "object"
+}

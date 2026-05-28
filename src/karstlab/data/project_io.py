@@ -29,6 +29,8 @@ PROJECT_DIRECTORIES = (
     "logs",
 )
 
+# Entries containing "{slug}" are filename templates; use canonical_output_paths() for concrete
+# project-specific paths.
 CANONICAL_FILENAMES = {
     "project": PROJECT_FILENAME,
     "pipeline_result": PIPELINE_RESULT_FILENAME,
