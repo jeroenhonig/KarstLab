@@ -1,5 +1,16 @@
 """Data-layer models and I/O helpers."""
 
+from karstlab.data.project_io import (
+    CANONICAL_FILENAMES,
+    PROJECT_DIRECTORIES,
+    ProjectPaths,
+    build_project_paths,
+    canonical_output_paths,
+    create_project,
+    load_project,
+    save_project,
+    slugify_project_name,
+)
 from karstlab.data.schemas import (
     AnalysisParams,
     BoundingBox,
@@ -34,4 +45,13 @@ __all__ = [
     "PoiSource",
     "ProjectFile",
     "UserSettings",
+    "CANONICAL_FILENAMES",
+    "PROJECT_DIRECTORIES",
+    "ProjectPaths",
+    "build_project_paths",
+    "canonical_output_paths",
+    "create_project",
+    "load_project",
+    "save_project",
+    "slugify_project_name",
 ]

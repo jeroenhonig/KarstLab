@@ -42,13 +42,13 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - [x] Initialize git repository.
 - [x] Claude Code contract review.
 - [x] Address contract review findings.
-- [ ] Add project directory creator.
+- [x] Add project directory creator.
 - [ ] Add land profile JSON files.
 
 ## TODO Queue
 
-1. Ask Claude Code for a short follow-up review of the contract fixes.
-2. Add project directory creator and canonical filenames.
+1. Ask Claude Code to review the project directory creator and canonical filenames.
+2. Address Claude Code findings on project I/O.
 3. Add land profile JSON files.
 4. Add synthetic DEM fixture and first raster I/O tests.
 5. Verify GDAL/PROJ and WhiteboxTools on the active machine.
@@ -73,7 +73,8 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28T12:40:00+02:00 | Phase 0 commit | Created initial repository commit `1e63253` for v0.1.0 skeleton and documentation after purging third-party binary/PDF assets from git history | Validation: `git filter-branch` removed `ARIS Lidar Prospector - Documentation v3a.pdf` from all commits; `git rev-list --objects --all` shows no PDF/EXE assets; `find . -maxdepth 2 -name "*.pdf" -o -name "*.exe"` shows no PDF/EXE assets.
 - 2026-05-28T13:20:00+02:00 | Phase 1 contracts | Added shared Pydantic v2 contracts in `src/karstlab/data/schemas.py`, exported data-layer model imports, schema validation tests, and `.pyinstaller/` clean target | Validation: `make PYTHON=.venv/bin/python test` pass (14 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
 - 2026-05-28T13:45:00+02:00 | Phase 1 contract review fixes | Aligned persisted contract field names with architecture docs, switched schema versions to `1.0.0`, added pipeline version/CRS/timestamp/status/warning fields, removed unused GeoJSON alias, and added strict/round-trip/edge-case tests | Validation: `make PYTHON=.venv/bin/python test` pass (22 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
+- 2026-05-28T14:05:00+02:00 | Phase 1 project I/O | Added project slugging, canonical directory/path constants, project creation, atomic project save/load, and canonical output filenames | Validation: `make PYTHON=.venv/bin/python test` pass (30 tests); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass.
 
 ## Next Action
 
-Ask Claude Code for a short follow-up review of the contract fixes before implementing the project directory creator.
+Ask Claude Code to review the project directory creator and canonical filenames before implementing land profile JSON files.
