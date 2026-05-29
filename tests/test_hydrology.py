@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from karstlab.business.hydrology import HydrologyAnalyzer
@@ -9,13 +10,37 @@ class FakeWhiteboxAdapter:
     def __init__(self) -> None:
         self.calls: list[tuple[str, Path, Path, dict[str, object]]] = []
 
-    def breach_depressions_least_cost(self, dem_path: Path, output_path: Path) -> Path:
+    def breach_depressions_least_cost(
+        self,
+        dem_path: Path,
+        output_path: Path,
+        *,
+        callback: Callable[[str], None] | None = None,
+    ) -> Path:
+        if callback is not None:
+            callback("breach")
         return self._write("breach_depressions_least_cost", dem_path, output_path)
 
-    def d8_pointer(self, dem_path: Path, output_path: Path) -> Path:
+    def d8_pointer(
+        self,
+        dem_path: Path,
+        output_path: Path,
+        *,
+        callback: Callable[[str], None] | None = None,
+    ) -> Path:
+        if callback is not None:
+            callback("pointer")
         return self._write("d8_pointer", dem_path, output_path)
 
-    def flow_accumulation(self, pointer_path: Path, output_path: Path) -> Path:
+    def flow_accumulation(
+        self,
+        pointer_path: Path,
+        output_path: Path,
+        *,
+        callback: Callable[[str], None] | None = None,
+    ) -> Path:
+        if callback is not None:
+            callback("accumulation")
         return self._write("flow_accumulation", pointer_path, output_path)
 
     def extract_streams(
@@ -25,7 +50,10 @@ class FakeWhiteboxAdapter:
         *,
         threshold: float,
         zero_background: bool,
+        callback: Callable[[str], None] | None = None,
     ) -> Path:
+        if callback is not None:
+            callback("streams")
         return self._write(
             "extract_streams",
             flow_accumulation_path,
@@ -48,7 +76,7 @@ class FakeWhiteboxAdapter:
 
 def test_hydrology_run_creates_expected_pipeline_outputs(tmp_path) -> None:  # type: ignore[no-untyped-def]
     whitebox = FakeWhiteboxAdapter()
-    analyzer = HydrologyAnalyzer(whitebox=whitebox)  # type: ignore[arg-type]
+    analyzer = HydrologyAnalyzer(whitebox=whitebox)
     dem = tmp_path / "input" / "dem.tif"
 
     outputs = analyzer.run(dem, tmp_path / "output" / "rasters", stream_threshold=100.0)
@@ -64,3 +92,18 @@ def test_hydrology_run_creates_expected_pipeline_outputs(tmp_path) -> None:  # t
         "extract_streams",
     ]
     assert whitebox.calls[-1][3] == {"threshold": 100.0, "zero_background": True}
+
+
+def test_hydrology_run_forwards_progress_callback(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    whitebox = FakeWhiteboxAdapter()
+    analyzer = HydrologyAnalyzer(whitebox=whitebox)
+    messages: list[str] = []
+
+    analyzer.run(
+        tmp_path / "input" / "dem.tif",
+        tmp_path / "output" / "rasters",
+        stream_threshold=100.0,
+        callback=messages.append,
+    )
+
+    assert messages == ["breach", "pointer", "accumulation", "streams"]

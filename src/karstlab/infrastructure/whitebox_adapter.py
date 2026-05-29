@@ -113,6 +113,7 @@ class WhiteboxAdapter:
         min_dist: bool = True,
         flat_increment: float | None = None,
         fill: bool = True,
+        callback: Callable[[str], None] | None = None,
     ) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         result = self.tools.breach_depressions_least_cost(
@@ -123,6 +124,7 @@ class WhiteboxAdapter:
             min_dist=min_dist,
             flat_increment=flat_increment,
             fill=fill,
+            callback=callback,
         )
         return self._checked_output("breach_depressions_least_cost", result, output_path)
 
@@ -134,6 +136,7 @@ class WhiteboxAdapter:
         fix_flats: bool = True,
         flat_increment: float | None = None,
         max_depth: float | None = None,
+        callback: Callable[[str], None] | None = None,
     ) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         result = self.tools.fill_depressions(
@@ -142,12 +145,25 @@ class WhiteboxAdapter:
             fix_flats=fix_flats,
             flat_increment=flat_increment,
             max_depth=max_depth,
+            callback=callback,
         )
         return self._checked_output("fill_depressions", result, output_path)
 
-    def d8_pointer(self, dem_path: Path, output_path: Path, *, esri_pointer: bool = False) -> Path:
+    def d8_pointer(
+        self,
+        dem_path: Path,
+        output_path: Path,
+        *,
+        esri_pointer: bool = False,
+        callback: Callable[[str], None] | None = None,
+    ) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        result = self.tools.d8_pointer(str(dem_path), str(output_path), esri_pntr=esri_pointer)
+        result = self.tools.d8_pointer(
+            str(dem_path),
+            str(output_path),
+            esri_pntr=esri_pointer,
+            callback=callback,
+        )
         return self._checked_output("d8_pointer", result, output_path)
 
     def flow_accumulation(
@@ -159,6 +175,7 @@ class WhiteboxAdapter:
         log: bool = False,
         clip: bool = False,
         esri_pointer: bool = False,
+        callback: Callable[[str], None] | None = None,
     ) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         result = self.tools.d8_flow_accumulation(
@@ -169,6 +186,7 @@ class WhiteboxAdapter:
             clip=clip,
             pntr=True,
             esri_pntr=esri_pointer,
+            callback=callback,
         )
         return self._checked_output("d8_flow_accumulation", result, output_path)
 
@@ -179,6 +197,7 @@ class WhiteboxAdapter:
         *,
         threshold: float,
         zero_background: bool = False,
+        callback: Callable[[str], None] | None = None,
     ) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         result = self.tools.extract_streams(
@@ -186,6 +205,7 @@ class WhiteboxAdapter:
             str(output_path),
             threshold,
             zero_background=zero_background,
+            callback=callback,
         )
         return self._checked_output("extract_streams", result, output_path)
 

@@ -130,6 +130,7 @@ def test_adapter_forwards_breach_depressions_parameters(tmp_path) -> None:  # ty
     tools = FakeWhiteboxTools()
     adapter = WhiteboxAdapter(tools=tools)
     dem = tmp_path / "dem.tif"
+    messages: list[str] = []
 
     output = adapter.breach_depressions_least_cost(
         dem,
@@ -139,6 +140,7 @@ def test_adapter_forwards_breach_depressions_parameters(tmp_path) -> None:  # ty
         min_dist=False,
         flat_increment=0.001,
         fill=False,
+        callback=messages.append,
     )
 
     assert output.exists()
@@ -151,7 +153,7 @@ def test_adapter_forwards_breach_depressions_parameters(tmp_path) -> None:  # ty
                 "min_dist": False,
                 "flat_increment": 0.001,
                 "fill": False,
-                "callback": None,
+                "callback": messages.append,
             },
         )
     ]
@@ -167,6 +169,25 @@ def test_flow_accumulation_uses_pointer_input(tmp_path) -> None:  # type: ignore
     assert tools.calls[0][0] == "d8_flow_accumulation"
     assert tools.calls[0][2]["pntr"] is True
     assert tools.calls[0][2]["out_type"] == "sca"
+
+
+def test_adapter_forwards_callbacks_to_each_tool(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    tools = FakeWhiteboxTools()
+    adapter = WhiteboxAdapter(tools=tools)
+    callback_messages: list[str] = []
+    callback = callback_messages.append
+
+    adapter.fill_depressions(tmp_path / "dem.tif", tmp_path / "filled.tif", callback=callback)
+    adapter.d8_pointer(tmp_path / "filled.tif", tmp_path / "d8.tif", callback=callback)
+    adapter.flow_accumulation(tmp_path / "d8.tif", tmp_path / "flow.tif", callback=callback)
+    adapter.extract_streams(
+        tmp_path / "flow.tif",
+        tmp_path / "streams.tif",
+        threshold=100.0,
+        callback=callback,
+    )
+
+    assert [call[2]["callback"] for call in tools.calls] == [callback, callback, callback, callback]
 
 
 def test_adapter_raises_on_nonzero_exit_code(tmp_path) -> None:  # type: ignore[no-untyped-def]
