@@ -30,12 +30,12 @@ class ResultsTab(QWidget):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(10)
 
-        self._summary_label = QLabel("No analysis results")
+        self._summary_label = QLabel(self.tr("No analysis results"))
         layout.addWidget(self._summary_label)
 
         self._table = QTableWidget(0, 6)
         self._table.setHorizontalHeaderLabels(
-            ["Rank", "ID", "Depth m", "Area m²", "Lat/Lon", "Flags"]
+            [self.tr("Rank"), self.tr("ID"), self.tr("Depth m"), self.tr("Area m²"), self.tr("Lat/Lon"), self.tr("Flags")]
         )
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -44,7 +44,7 @@ class ResultsTab(QWidget):
         self._table.itemSelectionChanged.connect(self._on_table_selection_changed)
         layout.addWidget(self._table)
 
-        self._list_label = QLabel("All depressions (0 total)")
+        self._list_label = QLabel(self.tr("All depressions (0 total)"))
         layout.addWidget(self._list_label)
 
         self._list = QListWidget()
@@ -68,7 +68,7 @@ class ResultsTab(QWidget):
         top = result.top_depressions if isinstance(result, PipelineResult) else list(result)
 
         self._summary_label.setText(
-            f"{len(depressions)} depressions detected; {len(top)} ranked results"
+            self.tr("{0} depressions detected; {1} ranked results").format(len(depressions), len(top))
         )
 
         self._table.setRowCount(len(top))
@@ -92,7 +92,7 @@ class ResultsTab(QWidget):
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 self._table.setItem(row, col, item)
 
-        self._list_label.setText(f"All depressions ({len(depressions)} total)")
+        self._list_label.setText(self.tr("All depressions ({0} total)").format(len(depressions)))
         self._list.clear()
         for depression in depressions:
             rank_str = (
@@ -107,9 +107,9 @@ class ResultsTab(QWidget):
 
     def clear(self) -> None:
         """Reset to empty state."""
-        self._summary_label.setText("No analysis results")
+        self._summary_label.setText(self.tr("No analysis results"))
         self._table.setRowCount(0)
-        self._list_label.setText("All depressions (0 total)")
+        self._list_label.setText(self.tr("All depressions (0 total)"))
         self._list.clear()
 
     @property
@@ -121,13 +121,13 @@ class ResultsTab(QWidget):
         """Format quality flags as a compact string."""
         flags = []
         if depression.quality_flags.edge_proximity:
-            flags.append("⚠ edge")
+            flags.append(self.tr("⚠ edge"))
         if depression.quality_flags.nodata_adjacent:
-            flags.append("⚠ nodata")
+            flags.append(self.tr("⚠ nodata"))
         if depression.quality_flags.nested:
-            flags.append("⚠ nested")
+            flags.append(self.tr("⚠ nested"))
         if depression.quality_flags.depth_confidence.value == "low":
-            flags.append("↓ conf")
+            flags.append(self.tr("↓ conf"))
         return " ".join(flags)
 
     def _on_table_selection_changed(self) -> None:

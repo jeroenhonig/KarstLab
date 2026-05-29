@@ -31,11 +31,11 @@ class LayersTab(QWidget):
         layout.setSpacing(10)
 
         layers = [
-            ("Doline footprints", True, 80),
-            ("Top 25 markers", True, 80),
-            ("Contours", True, 80),
-            ("Streams", False, 40),
-            ("Hillshade", False, 40),
+            (self.tr("Doline footprints"), True, 80),
+            (self.tr("Top 25 markers"), True, 80),
+            (self.tr("Contours"), True, 80),
+            (self.tr("Streams"), False, 40),
+            (self.tr("Hillshade"), False, 40),
         ]
 
         for layer_name, checked, opacity in layers:
@@ -46,7 +46,7 @@ class LayersTab(QWidget):
         separator.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(separator)
 
-        self._tile_grid_checkbox = QCheckBox("Show tile boundary grid")
+        self._tile_grid_checkbox = QCheckBox(self.tr("Show tile boundary grid"))
         self._tile_grid_checkbox.setChecked(False)
         self._tile_grid_checkbox.toggled.connect(self._on_tile_grid_toggled)
         layout.addWidget(self._tile_grid_checkbox)

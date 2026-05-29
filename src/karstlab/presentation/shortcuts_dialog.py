@@ -17,37 +17,40 @@ from PySide6.QtWidgets import (
 class ShortcutsDialog(QDialog):
     """Dialog displaying keyboard shortcuts reference."""
 
-    SHORTCUTS = [
-        ("Ctrl+N", "New project"),
-        ("Ctrl+O", "Open project"),
-        ("Ctrl+S", "Save project"),
-        ("Ctrl+?", "Show keyboard shortcuts"),
-        ("Ctrl+,", "Open settings"),
-        ("F5 / Ctrl+R", "Run analysis"),
-        ("Escape", "Cancel analysis"),
-        ("Ctrl+1", "Switch to Tools tab"),
-        ("Ctrl+2", "Switch to Results tab"),
-        ("Ctrl+3", "Switch to Layers tab"),
-        ("Ctrl+4", "Switch to Markers tab"),
-        ("Ctrl+5", "Switch to Export tab"),
-    ]
+    def _get_shortcuts(self) -> list[tuple[str, str]]:
+        """Return the list of shortcuts with translations."""
+        return [
+            ("Ctrl+N", self.tr("New project")),
+            ("Ctrl+O", self.tr("Open project")),
+            ("Ctrl+S", self.tr("Save project")),
+            ("Ctrl+?", self.tr("Show keyboard shortcuts")),
+            ("Ctrl+,", self.tr("Open settings")),
+            ("F5 / Ctrl+R", self.tr("Run analysis")),
+            ("Escape", self.tr("Cancel analysis")),
+            ("Ctrl+1", self.tr("Switch to Tools tab")),
+            ("Ctrl+2", self.tr("Switch to Results tab")),
+            ("Ctrl+3", self.tr("Switch to Layers tab")),
+            ("Ctrl+4", self.tr("Switch to Markers tab")),
+            ("Ctrl+5", self.tr("Switch to Export tab")),
+        ]
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Keyboard Shortcuts")
+        self.setWindowTitle(self.tr("Keyboard Shortcuts"))
         self.setMinimumWidth(450)
         self.setMinimumHeight(400)
         self.setModal(True)
 
+        shortcuts = self._get_shortcuts()
         table = QTableWidget()
         table.setColumnCount(2)
-        table.setHorizontalHeaderLabels(["Shortcut", "Action"])
-        table.setRowCount(len(self.SHORTCUTS))
+        table.setHorizontalHeaderLabels([self.tr("Shortcut"), self.tr("Action")])
+        table.setRowCount(len(shortcuts))
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
 
-        for row, (shortcut, action) in enumerate(self.SHORTCUTS):
+        for row, (shortcut, action) in enumerate(shortcuts):
             shortcut_item = QTableWidgetItem(shortcut)
             shortcut_item.setFlags(shortcut_item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
             action_item = QTableWidgetItem(action)
@@ -59,7 +62,7 @@ class ShortcutsDialog(QDialog):
         table.horizontalHeader().setStretchLastSection(True)
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
 
-        close_button = QPushButton("Close")
+        close_button = QPushButton(self.tr("Close"))
         close_button.setObjectName("primaryButton")
         close_button.clicked.connect(self.accept)
         close_button.setMaximumWidth(100)

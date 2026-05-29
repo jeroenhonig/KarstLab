@@ -89,7 +89,7 @@ class ProgressDialog(QDialog):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Analysis Progress")
+        self.setWindowTitle(self.tr("Analysis Progress"))
         self.setModal(False)
         self.setStyleSheet(_DARK_STYLESHEET)
         self.resize(500, 400)
@@ -98,7 +98,7 @@ class ProgressDialog(QDialog):
 
         layout = QVBoxLayout()
 
-        header_label = QLabel("Pipeline Steps")
+        header_label = QLabel(self.tr("Pipeline Steps"))
         header_label.setStyleSheet("font-weight: bold; font-size: 12pt;")
         layout.addWidget(header_label)
 
@@ -119,12 +119,12 @@ class ProgressDialog(QDialog):
         layout.addWidget(self._error_browser)
 
         button_layout = QHBoxLayout()
-        self._rerun_button = QPushButton("Rerun failed steps")
+        self._rerun_button = QPushButton(self.tr("Rerun failed steps"))
         self._rerun_button.setEnabled(False)
         self._rerun_button.clicked.connect(self.rerun_failed_requested.emit)
         button_layout.addWidget(self._rerun_button)
 
-        close_button = QPushButton("Close")
+        close_button = QPushButton(self.tr("Close"))
         close_button.clicked.connect(self.close)
         button_layout.addWidget(close_button)
 

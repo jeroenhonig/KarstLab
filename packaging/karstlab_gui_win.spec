@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for KarstLab macOS GUI application."""
+"""PyInstaller spec for KarstLab Windows GUI application."""
 
 from pathlib import Path
 import os
@@ -25,9 +25,9 @@ except ImportError:
 # WhiteboxTools binary path (if available)
 wbt_bin = None
 wbt_search_paths = [
-    Path.home() / ".local" / "bin" / "whitebox_tools",
-    Path("/usr/local/bin/whitebox_tools"),
-    Path("/opt/homebrew/bin/whitebox_tools"),  # Apple Silicon
+    Path.home() / ".local" / "bin" / "whitebox_tools.exe",
+    Path("C:\\Program Files\\WhiteboxTools\\whitebox_tools.exe"),
+    Path("C:\\Program Files (x86)\\WhiteboxTools\\whitebox_tools.exe"),
 ]
 for path in wbt_search_paths:
     if path.exists():
@@ -119,8 +119,9 @@ exe = EXE(
     upx=False,
     console=False,
     target_arch=None,
-    codesign_identity=None,
-    entitlements_file=str(project_root / "packaging" / "macos" / "entitlements.plist"),
+    icon=str(project_root / "packaging" / "icons" / "karstlab.ico")
+    if (project_root / "packaging" / "icons" / "karstlab.ico").exists()
+    else None,
 )
 
 coll = COLLECT(
@@ -132,29 +133,4 @@ coll = COLLECT(
     upx=False,
     upx_exclude=[],
     name="KarstLab",
-)
-
-app = BUNDLE(
-    coll,
-    name="KarstLab.app",
-    icon=str(project_root / "packaging" / "icons" / "karstlab.icns")
-    if (project_root / "packaging" / "icons" / "karstlab.icns").exists()
-    else None,
-    bundle_identifier="nl.karstlab.KarstLab",
-    info_plist={
-        "NSPrincipalClass": "NSApplication",
-        "NSHighResolutionCapable": "True",
-        "CFBundleDocumentTypes": [
-            {
-                "CFBundleTypeName": "KarstLab Project",
-                "CFBundleTypeRole": "Editor",
-                "CFBundleTypeExtensions": ["karstlab"],
-                "CFBundleTypeIconFile": "karstlab.icns",
-            }
-        ],
-        "LSEnvironment": {
-            "PROJ_DATA": "@executable_path/../Resources/proj",
-            "GDAL_DATA": "@executable_path/../Resources/gdal",
-        },
-    },
 )

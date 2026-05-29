@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QCheckBox,
@@ -30,14 +31,15 @@ class SettingsDialog(QDialog):
 
     def __init__(self, settings: UserSettings, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Settings")
+        self.setWindowTitle(self.tr("Settings"))
         self.setModal(True)
         self.setMinimumWidth(500)
         self._settings = settings
+        self._original_language = settings.language
         self._whitebox_path_value: Path | None = settings.whitebox_path
 
         self._language_combo = QComboBox()
-        self._language_combo.addItems(["English (en)", "Nederlands (nl)", "Français (fr)"])
+        self._language_combo.addItems([self.tr("English (en)"), self.tr("Nederlands (nl)"), self.tr("Français (fr)")])
         self._set_combo_index_by_locale(self._language_combo, settings.language)
 
         self._land_profile_combo = QComboBox()
@@ -50,12 +52,12 @@ class SettingsDialog(QDialog):
         self._update_check_box.setChecked(settings.update_check)
 
         self._whitebox_path_input = QLineEdit()
-        self._whitebox_path_input.setPlaceholderText("Leave blank to use bundled binary")
+        self._whitebox_path_input.setPlaceholderText(self.tr("Leave blank to use bundled binary"))
         if settings.whitebox_path:
             self._whitebox_path_input.setText(str(settings.whitebox_path))
         self._whitebox_path_input.setReadOnly(True)
 
-        self._whitebox_browse_button = QPushButton("Browse…")
+        self._whitebox_browse_button = QPushButton(self.tr("Browse…"))
         self._whitebox_browse_button.clicked.connect(self._on_browse_whitebox)
 
         whitebox_layout = QHBoxLayout()
@@ -63,17 +65,17 @@ class SettingsDialog(QDialog):
         whitebox_layout.addWidget(self._whitebox_browse_button)
 
         form_layout = QFormLayout()
-        form_layout.addRow("Language:", self._language_combo)
-        form_layout.addRow("Land profile:", self._land_profile_combo)
-        form_layout.addRow("Check for updates:", self._update_check_box)
-        form_layout.addRow("WhiteboxTools path:", whitebox_layout)
+        form_layout.addRow(self.tr("Language:"), self._language_combo)
+        form_layout.addRow(self.tr("Land profile:"), self._land_profile_combo)
+        form_layout.addRow(self.tr("Check for updates:"), self._update_check_box)
+        form_layout.addRow(self.tr("WhiteboxTools path:"), whitebox_layout)
 
         button_layout = QHBoxLayout()
-        self._ok_button = QPushButton("OK")
+        self._ok_button = QPushButton(self.tr("OK"))
         self._ok_button.setObjectName("primaryButton")
         self._ok_button.clicked.connect(self._on_ok)
 
-        self._cancel_button = QPushButton("Cancel")
+        self._cancel_button = QPushButton(self.tr("Cancel"))
         self._cancel_button.clicked.connect(self.reject)
 
         button_layout.addStretch()
@@ -106,7 +108,7 @@ class SettingsDialog(QDialog):
         """Handle WhiteboxTools directory browse."""
         selected_dir = QFileDialog.getExistingDirectory(
             self,
-            "Select WhiteboxTools Directory",
+            self.tr("Select WhiteboxTools Directory"),
             str(self._whitebox_path_value) if self._whitebox_path_value else "",
         )
         if selected_dir:
@@ -133,6 +135,14 @@ class SettingsDialog(QDialog):
         )
 
         self.settings_saved.emit(updated_settings)
+
+        if language != self._original_language:
+            QMessageBox.information(
+                self,
+                self.tr("Restart required"),
+                self.tr("Language change takes effect after restarting KarstLab."),
+            )
+
         self.accept()
 
     def whitebox_path_value(self) -> Path | None:

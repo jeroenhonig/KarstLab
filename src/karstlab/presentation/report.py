@@ -12,6 +12,72 @@ from typing import Any
 from karstlab.business.depression_ranker import rank_depressions
 from karstlab.data.schemas import AnalysisParams, DepressionResult, PipelineResult
 
+_REPORT_I18N: dict[str, dict[str, str]] = {
+    "en": {
+        "title": "KarstLab analysis report",
+        "project": "Project",
+        "run_summary": "Run Summary",
+        "analysis_parameters": "Analysis Parameters",
+        "summary_statistics": "Summary Statistics",
+        "provenance": "Provenance",
+        "top_depressions": "Top 25 Depressions",
+        "rank": "Rank",
+        "id": "ID",
+        "depth": "Depth (m)",
+        "area": "Area (m²)",
+        "lat": "Latitude",
+        "lon": "Longitude",
+        "flags": "Flags",
+        "started": "Started",
+        "finished": "Finished",
+        "depressions_found": "Depressions found",
+        "top_depressions_count": "Top depressions",
+        "land_profile": "Land profile",
+    },
+    "nl": {
+        "title": "KarstLab-analyserapport",
+        "project": "Project",
+        "run_summary": "Overzicht",
+        "analysis_parameters": "Analyseparameters",
+        "summary_statistics": "Overzichtsstatistieken",
+        "provenance": "Herkomst",
+        "top_depressions": "Top 25 depressies",
+        "rank": "Rang",
+        "id": "ID",
+        "depth": "Diepte (m)",
+        "area": "Opp. (m²)",
+        "lat": "Breedtegraad",
+        "lon": "Lengtegraad",
+        "flags": "Markeringen",
+        "started": "Gestart",
+        "finished": "Afgerond",
+        "depressions_found": "Depressies gevonden",
+        "top_depressions_count": "Top depressies",
+        "land_profile": "Landprofiel",
+    },
+    "fr": {
+        "title": "Rapport d'analyse KarstLab",
+        "project": "Projet",
+        "run_summary": "Résumé",
+        "analysis_parameters": "Paramètres d'analyse",
+        "summary_statistics": "Statistiques sommaires",
+        "provenance": "Provenance",
+        "top_depressions": "Top 25 dépressions",
+        "rank": "Rang",
+        "id": "ID",
+        "depth": "Prof. (m)",
+        "area": "Superficie (m²)",
+        "lat": "Latitude",
+        "lon": "Longitude",
+        "flags": "Indicateurs",
+        "started": "Démarré",
+        "finished": "Terminé",
+        "depressions_found": "Dépressions trouvées",
+        "top_depressions_count": "Meilleures dépressions",
+        "land_profile": "Profil de terrain",
+    },
+}
+
 
 def generate_html_report(
     analysis_params: AnalysisParams,
@@ -22,6 +88,7 @@ def generate_html_report(
     provenance: Mapping[str, Any] | None = None,
     map_html_path: Path | str | None = None,
     map_reference: str | None = None,
+    locale: str = "en",
 ) -> str:
     """Generate an HTML report for a completed analysis."""
     report_depressions = (
@@ -35,6 +102,7 @@ def generate_html_report(
     report_provenance = dict(provenance) if provenance is not None else pipeline_result.provenance
     report_statistics = dict(statistics or {})
     map_html = _read_map_html(map_html_path)
+    i18n = _REPORT_I18N.get(locale, _REPORT_I18N["en"])
 
     return "\n".join(
         [
@@ -51,17 +119,17 @@ def generate_html_report(
             "<body>",
             "  <main>",
             "    <header>",
-            "      <p>KarstLab analysis report</p>",
-            f"      <h1>Project {_text(str(pipeline_result.project_id))}</h1>",
+            f"      <p>{_text(i18n['title'])}</p>",
+            f"      <h1>{_text(i18n['project'])} {_text(str(pipeline_result.project_id))}</h1>",
             "    </header>",
-            _section("Run Summary", _run_summary(pipeline_result, len(report_depressions))),
+            _section(i18n["run_summary"], _run_summary(pipeline_result, len(report_depressions), i18n)),
             _section(
-                "Analysis Parameters",
+                i18n["analysis_parameters"],
                 _mapping_table(analysis_params.model_dump(mode="json")),
             ),
-            _section("Summary Statistics", _mapping_table(report_statistics)),
-            _section("Provenance", _mapping_table(report_provenance)),
-            _section("Top 25 Depressions", _depressions_table(top_depressions)),
+            _section(i18n["summary_statistics"], _mapping_table(report_statistics)),
+            _section(i18n["provenance"], _mapping_table(report_provenance)),
+            _section(i18n["top_depressions"], _depressions_table(top_depressions, i18n)),
             _map_section(map_html, map_reference),
             "  </main>",
             "</body>",
@@ -80,6 +148,7 @@ def write_html_report(
     provenance: Mapping[str, Any] | None = None,
     map_html_path: Path | str | None = None,
     map_reference: str | None = None,
+    locale: str = "en",
 ) -> Path:
     """Write an HTML report and return the written path."""
     destination = Path(output_path)
@@ -91,27 +160,32 @@ def write_html_report(
         provenance=provenance,
         map_html_path=map_html_path,
         map_reference=map_reference,
+        locale=locale,
     )
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(html, encoding="utf-8")
     return destination
 
 
-def _run_summary(pipeline_result: PipelineResult, depression_count: int) -> str:
+def _run_summary(
+    pipeline_result: PipelineResult, depression_count: int, i18n: dict[str, str]
+) -> str:
     rows: dict[str, Any] = {
         "Status": pipeline_result.status.value,
-        "Land profile": pipeline_result.land_profile,
-        "Started at": _format_datetime(pipeline_result.started_at),
-        "Finished at": _format_datetime(pipeline_result.finished_at),
+        i18n["land_profile"]: pipeline_result.land_profile,
+        i18n["started"]: _format_datetime(pipeline_result.started_at),
+        i18n["finished"]: _format_datetime(pipeline_result.finished_at),
         "Input DEM paths": [str(path) for path in pipeline_result.input_dem_paths],
         "Output directory": str(pipeline_result.output_dir),
-        "Depressions detected": depression_count,
+        i18n["depressions_found"]: depression_count,
         "Pipeline steps": len(pipeline_result.steps),
     }
     return _mapping_table(rows)
 
 
-def _depressions_table(depressions: Sequence[DepressionResult]) -> str:
+def _depressions_table(
+    depressions: Sequence[DepressionResult], i18n: dict[str, str]
+) -> str:
     if not depressions:
         return '<p class="empty">No depressions available.</p>'
 
@@ -132,13 +206,13 @@ def _depressions_table(depressions: Sequence[DepressionResult]) -> str:
             "    <table>",
             "      <thead>",
             "        <tr>",
-            "          <th>Rank</th>",
-            "          <th>ID</th>",
-            "          <th>Max depth (m)</th>",
-            "          <th>Area (m2)</th>",
-            "          <th>Latitude</th>",
-            "          <th>Longitude</th>",
-            "          <th>Depth confidence</th>",
+            f"          <th>{_text(i18n['rank'])}</th>",
+            f"          <th>{_text(i18n['id'])}</th>",
+            f"          <th>{_text(i18n['depth'])}</th>",
+            f"          <th>{_text(i18n['area'])}</th>",
+            f"          <th>{_text(i18n['lat'])}</th>",
+            f"          <th>{_text(i18n['lon'])}</th>",
+            f"          <th>{_text(i18n['flags'])}</th>",
             "        </tr>",
             "      </thead>",
             "      <tbody>",

@@ -40,11 +40,11 @@ class ToolsTab(QWidget):
 
         self._dem_edit = QLineEdit()
         self._dem_edit.setReadOnly(True)
-        self._dem_browse_button = QPushButton("Browse…")
+        self._dem_browse_button = QPushButton(self.tr("Browse…"))
         self._dem_browse_button.clicked.connect(self._browse_dem)
 
         self._project_edit = QLineEdit()
-        self._project_browse_button = QPushButton("Browse…")
+        self._project_browse_button = QPushButton(self.tr("Browse…"))
         self._project_browse_button.clicked.connect(self._browse_project)
 
         self._profile_combo = QComboBox()
@@ -56,16 +56,16 @@ class ToolsTab(QWidget):
         dem_row.addWidget(self._dem_browse_button)
         dem_wrapper = QWidget()
         dem_wrapper.setLayout(dem_row)
-        form_layout.addRow("DEM", dem_wrapper)
+        form_layout.addRow(self.tr("DEM"), dem_wrapper)
 
         project_row = QHBoxLayout()
         project_row.addWidget(self._project_edit)
         project_row.addWidget(self._project_browse_button)
         project_wrapper = QWidget()
         project_wrapper.setLayout(project_row)
-        form_layout.addRow("Project folder", project_wrapper)
+        form_layout.addRow(self.tr("Project folder"), project_wrapper)
 
-        form_layout.addRow("Land profile", self._profile_combo)
+        form_layout.addRow(self.tr("Land profile"), self._profile_combo)
 
         params_group = self._create_parameters_group()
 
@@ -74,15 +74,15 @@ class ToolsTab(QWidget):
         self._progress_bar.setValue(0)
         self._progress_bar.setTextVisible(False)
 
-        self._analyze_button = QPushButton("Analyze")
+        self._analyze_button = QPushButton(self.tr("Analyze"))
         self._analyze_button.setObjectName("primaryButton")
         self._analyze_button.clicked.connect(self.analyze_requested.emit)
 
-        self._cancel_button = QPushButton("Cancel")
+        self._cancel_button = QPushButton(self.tr("Cancel"))
         self._cancel_button.setEnabled(False)
         self._cancel_button.clicked.connect(self.cancel_requested.emit)
 
-        self._status_label = QLabel("Ready")
+        self._status_label = QLabel(self.tr("Ready"))
         self._status_label.setObjectName("secondaryText")
 
         layout = QVBoxLayout(self)
@@ -97,44 +97,44 @@ class ToolsTab(QWidget):
 
     def _create_parameters_group(self) -> QGroupBox:
         """Create the analysis parameters group box."""
-        group = QGroupBox("Analysis parameters")
+        group = QGroupBox(self.tr("Analysis parameters"))
         grid_layout = QFormLayout(group)
 
         self._contour_spin = QDoubleSpinBox()
         self._contour_spin.setRange(0.1, 100.0)
         self._contour_spin.setSingleStep(0.5)
         self._contour_spin.setValue(5.0)
-        grid_layout.addRow("Contour interval (m)", self._contour_spin)
+        grid_layout.addRow(self.tr("Contour interval (m)"), self._contour_spin)
 
         self._min_depth_spin = QDoubleSpinBox()
         self._min_depth_spin.setRange(0.0, 100.0)
         self._min_depth_spin.setSingleStep(0.1)
         self._min_depth_spin.setValue(0.25)
-        grid_layout.addRow("Min depth (m)", self._min_depth_spin)
+        grid_layout.addRow(self.tr("Min depth (m)"), self._min_depth_spin)
 
         self._max_depth_spin = QDoubleSpinBox()
         self._max_depth_spin.setRange(0.1, 500.0)
         self._max_depth_spin.setSingleStep(1.0)
         self._max_depth_spin.setValue(40.0)
-        grid_layout.addRow("Max depth (m)", self._max_depth_spin)
+        grid_layout.addRow(self.tr("Max depth (m)"), self._max_depth_spin)
 
         self._min_area_spin = QDoubleSpinBox()
         self._min_area_spin.setRange(0.0, 100000.0)
         self._min_area_spin.setSingleStep(10.0)
         self._min_area_spin.setValue(1.0)
-        grid_layout.addRow("Min area (m²)", self._min_area_spin)
+        grid_layout.addRow(self.tr("Min area (m²)"), self._min_area_spin)
 
         self._max_area_spin = QDoubleSpinBox()
         self._max_area_spin.setRange(1.0, 1000000.0)
         self._max_area_spin.setSingleStep(100.0)
         self._max_area_spin.setValue(60000.0)
-        grid_layout.addRow("Max area (m²)", self._max_area_spin)
+        grid_layout.addRow(self.tr("Max area (m²)"), self._max_area_spin)
 
         self._stream_threshold_spin = QSpinBox()
         self._stream_threshold_spin.setRange(100, 100000)
         self._stream_threshold_spin.setSingleStep(100)
         self._stream_threshold_spin.setValue(1000)
-        grid_layout.addRow("Stream threshold (cells)", self._stream_threshold_spin)
+        grid_layout.addRow(self.tr("Stream threshold (cells)"), self._stream_threshold_spin)
 
         return group
 
@@ -142,9 +142,9 @@ class ToolsTab(QWidget):
         """Browse for DEM file."""
         path, _selected_filter = QFileDialog.getOpenFileName(
             self,
-            "Select DEM",
+            self.tr("Select DEM"),
             str(Path.home()),
-            "GeoTIFF (*.tif *.tiff);;All files (*)",
+            self.tr("GeoTIFF (*.tif *.tiff);;All files (*)"),
         )
         if path:
             self.set_dem_path(Path(path))
@@ -153,7 +153,7 @@ class ToolsTab(QWidget):
         """Browse for project directory."""
         path = QFileDialog.getExistingDirectory(
             self,
-            "Select project folder",
+            self.tr("Select project folder"),
             self._project_edit.text() or str(Path.home()),
         )
         if path:

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Dark background -->
+  <rect width="512" height="512" rx="80" fill="#1a1f2e"/>
+
+  <!-- Terrain profile curve with depression (doline) -->
+  <path d="M 40 320 Q 120 200, 200 280 Q 230 310, 256 340 Q 282 310, 312 280 Q 392 200, 472 320"
+        fill="none" stroke="#c75d4a" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Water/contours at bottom of depression (doline pool) -->
+  <ellipse cx="256" cy="350" rx="45" ry="20" fill="#4a90d9" opacity="0.8"/>
+  <ellipse cx="256" cy="355" rx="35" ry="12" fill="#4a90d9" opacity="0.6"/>
+
+  <!-- Additional contour lines for terrain -->
+  <path d="M 80 340 Q 150 320, 220 335" fill="none" stroke="#c75d4a" stroke-width="8" opacity="0.5" stroke-linecap="round"/>
+  <path d="M 292 335 Q 360 320, 430 340" fill="none" stroke="#c75d4a" stroke-width="8" opacity="0.5" stroke-linecap="round"/>
+
+  <!-- KL text monogram -->
+  <text x="256" y="460" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold"
+        font-size="72" fill="#e8eaf0" letter-spacing="-2">KL</text>
+</svg>

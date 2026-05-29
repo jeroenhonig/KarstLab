@@ -12,16 +12,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-_GUIDED_STEPS = [
-    "Download DEM tiles from the land profile DEM sources.",
-    "Select DEM file(s) in the Tools tab.",
-    "Choose land profile and project folder.",
-    "Click Analyze and wait for the pipeline to complete.",
-    "Review Top 25 depressions in the Results tab.",
-    "Export markers, KML, or GPX from the Export tab.",
-]
-
-
 class GuidedWorkflowPanel(QFrame):
     """Collapsible step-by-step workflow guidance panel."""
 
@@ -67,9 +57,21 @@ class GuidedWorkflowPanel(QFrame):
         main_layout.addWidget(self._content_widget)
         self._update_button_states()
 
+    def _guided_steps(self) -> list[str]:
+        """Return the list of guided workflow steps with translations."""
+        return [
+            self.tr("Download DEM tiles from the land profile DEM sources."),
+            self.tr("Select DEM file(s) in the Tools tab."),
+            self.tr("Choose land profile and project folder."),
+            self.tr("Click Analyze and wait for the pipeline to complete."),
+            self.tr("Review Top 25 depressions in the Results tab."),
+            self.tr("Export markers, KML, or GPX from the Export tab."),
+        ]
+
     def set_step(self, step: int) -> None:
         """Set the current step (0-indexed, clamped to valid range)."""
-        step = max(0, min(step, len(_GUIDED_STEPS) - 1))
+        steps = self._guided_steps()
+        step = max(0, min(step, len(steps) - 1))
         if step != self._current_step:
             self._current_step = step
             self._step_label.setText(self._format_step_text(step))
@@ -86,16 +88,18 @@ class GuidedWorkflowPanel(QFrame):
 
     def mark_step_complete(self, step: int) -> None:
         """Mark a step as complete with a checkmark."""
-        if 0 <= step < len(_GUIDED_STEPS):
+        steps = self._guided_steps()
+        if 0 <= step < len(steps):
             self._completed_steps.add(step)
             if step == self._current_step:
                 self._step_label.setText(self._format_step_text(step))
 
     def _format_step_text(self, step: int) -> str:
         """Format step text with optional checkmark."""
+        steps = self._guided_steps()
         prefix = "✓ " if step in self._completed_steps else ""
-        total = len(_GUIDED_STEPS)
-        return f"{prefix}Step {step + 1}/{total}: {_GUIDED_STEPS[step]}"
+        total = len(steps)
+        return self.tr("Step {0}/{1}: {2}").format(step + 1, total, steps[step])
 
     def _on_prev(self) -> None:
         """Move to previous step."""
@@ -104,7 +108,8 @@ class GuidedWorkflowPanel(QFrame):
 
     def _on_next(self) -> None:
         """Move to next step."""
-        if self._current_step < len(_GUIDED_STEPS) - 1:
+        steps = self._guided_steps()
+        if self._current_step < len(steps) - 1:
             self.set_step(self._current_step + 1)
 
     def _on_toggle(self) -> None:
@@ -118,8 +123,9 @@ class GuidedWorkflowPanel(QFrame):
 
     def _update_button_states(self) -> None:
         """Enable/disable prev/next buttons based on current step."""
+        steps = self._guided_steps()
         self._prev_btn.setEnabled(self._current_step > 0)
-        self._next_btn.setEnabled(self._current_step < len(_GUIDED_STEPS) - 1)
+        self._next_btn.setEnabled(self._current_step < len(steps) - 1)
 
 
 __all__ = ["GuidedWorkflowPanel"]

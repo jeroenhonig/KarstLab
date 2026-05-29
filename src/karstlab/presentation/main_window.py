@@ -79,7 +79,7 @@ class MainWindow(QMainWindow):
         self._current_project: ProjectFile | None = None
         self._user_settings = load_user_settings()
 
-        self.setWindowTitle(f"KarstLab {__version__}")
+        self.setWindowTitle(self.tr("KarstLab {0}").format(__version__))
         self.resize(1280, 820)
         self.setMinimumSize(980, 640)
         self.setStyleSheet(_stylesheet())
@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
         self._connect_signals()
         self._setup_shortcuts()
         self.map_view.marker_placed.connect(self._on_map_marker_placed)
-        self.statusBar().showMessage("Ready")
+        self.statusBar().showMessage(self.tr("Ready"))
 
     # ─── Backward-compat proxy properties ────────────────────────────────────
 
@@ -180,7 +180,7 @@ class MainWindow(QMainWindow):
 
     def set_dem_path(self, path: Path) -> None:
         self._tools_widget.set_dem_path(path)
-        self.statusBar().showMessage(f"DEM selected: {path}")
+        self.statusBar().showMessage(self.tr("DEM selected: {0}").format(path))
 
     def selected_dem_path(self) -> Path | None:
         return self._tools_widget.dem_path()
@@ -226,11 +226,11 @@ class MainWindow(QMainWindow):
         sidebar_layout.setSpacing(10)
         sidebar_layout.addWidget(self.sidebar)
 
-        self.sidebar.addTab(self._tools_widget, "Tools")
-        self.sidebar.addTab(self._results_widget, "Results")
-        self.sidebar.addTab(self._layers_widget, "Layers")
-        self.sidebar.addTab(self._markers_widget, "Markers")
-        self.sidebar.addTab(self._export_widget, "Export")
+        self.sidebar.addTab(self._tools_widget, self.tr("Tools"))
+        self.sidebar.addTab(self._results_widget, self.tr("Results"))
+        self.sidebar.addTab(self._layers_widget, self.tr("Layers"))
+        self.sidebar.addTab(self._markers_widget, self.tr("Markers"))
+        self.sidebar.addTab(self._export_widget, self.tr("Export"))
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(map_panel)
@@ -241,35 +241,35 @@ class MainWindow(QMainWindow):
         self.setStatusBar(QStatusBar())
 
     def _build_menu_bar(self) -> None:
-        file_menu: QMenu = self.menuBar().addMenu("File")
+        file_menu: QMenu = self.menuBar().addMenu(self.tr("File"))
 
-        new_action = QAction("New project", self)
+        new_action = QAction(self.tr("New project"), self)
         new_action.setShortcut("Ctrl+N")
         new_action.triggered.connect(self._new_project)
         file_menu.addAction(new_action)
 
-        open_action = QAction("Open project…", self)
+        open_action = QAction(self.tr("Open project…"), self)
         open_action.setShortcut("Ctrl+O")
         open_action.triggered.connect(self._open_project)
         file_menu.addAction(open_action)
 
-        save_action = QAction("Save project", self)
+        save_action = QAction(self.tr("Save project"), self)
         save_action.setShortcut("Ctrl+S")
         save_action.triggered.connect(self._save_project)
         file_menu.addAction(save_action)
 
         file_menu.addSeparator()
-        self._recent_menu: QMenu = file_menu.addMenu("Open recent")
+        self._recent_menu: QMenu = file_menu.addMenu(self.tr("Open recent"))
         self._refresh_recent_menu()
 
-        help_menu: QMenu = self.menuBar().addMenu("Help")
+        help_menu: QMenu = self.menuBar().addMenu(self.tr("Help"))
 
-        settings_action = QAction("Settings…", self)
+        settings_action = QAction(self.tr("Settings…"), self)
         settings_action.setShortcut("Ctrl+,")
         settings_action.triggered.connect(self._open_settings)
         help_menu.addAction(settings_action)
 
-        shortcuts_action = QAction("Keyboard shortcuts", self)
+        shortcuts_action = QAction(self.tr("Keyboard shortcuts"), self)
         shortcuts_action.setShortcut("Ctrl+?")
         shortcuts_action.triggered.connect(self._open_shortcuts)
         help_menu.addAction(shortcuts_action)
@@ -366,14 +366,14 @@ class MainWindow(QMainWindow):
         self.export_paths = {}
         self._export_widget.set_export_paths({})
         self._export_widget.set_project(None)
-        self.statusBar().showMessage("New project")
+        self.statusBar().showMessage(self.tr("New project"))
 
     def _open_project(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open KarstLab project",
+            self.tr("Open KarstLab project"),
             str(self._user_settings.last_project_dir or Path.home()),
-            "KarstLab project (*.karstlab);;All files (*)",
+            self.tr("KarstLab project (*.karstlab);;All files (*)"),
         )
         if not path:
             return
@@ -383,7 +383,7 @@ class MainWindow(QMainWindow):
         try:
             project = load_project(project_file)
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Open project failed", str(exc))
+            QMessageBox.critical(self, self.tr("Open project failed"), str(exc))
             return
 
         self._current_project = project
@@ -425,18 +425,18 @@ class MainWindow(QMainWindow):
             )
         )
         self._refresh_recent_menu()
-        self.statusBar().showMessage(f"Opened: {project.name}")
+        self.statusBar().showMessage(self.tr("Opened: {0}").format(project.name))
 
     def _save_project(self) -> None:
         if self._current_project is None:
-            self.statusBar().showMessage("No project to save")
+            self.statusBar().showMessage(self.tr("No project to save"))
             return
         try:
             self._current_project = save_project(self._current_project)
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Save project failed", str(exc))
+            QMessageBox.critical(self, self.tr("Save project failed"), str(exc))
             return
-        self.statusBar().showMessage(f"Saved: {self._current_project.name}")
+        self.statusBar().showMessage(self.tr("Saved: {0}").format(self._current_project.name))
 
     def _refresh_recent_menu(self) -> None:
         self._recent_menu.clear()
@@ -447,7 +447,7 @@ class MainWindow(QMainWindow):
             )
             self._recent_menu.addAction(action)
         if not self._user_settings.recent_projects:
-            placeholder = QAction("No recent projects", self)
+            placeholder = QAction(self.tr("No recent projects"), self)
             placeholder.setEnabled(False)
             self._recent_menu.addAction(placeholder)
 
@@ -468,16 +468,16 @@ class MainWindow(QMainWindow):
         if not dem_paths:
             QMessageBox.warning(
                 self,
-                "DEM required",
-                "Select an existing GeoTIFF DEM before analysis.",
+                self.tr("DEM required"),
+                self.tr("Select an existing GeoTIFF DEM before analysis."),
             )
             return
 
         self._tools_widget.set_analyze_enabled(False)
         self._tools_widget.set_cancel_enabled(True)
         self._tools_widget.set_progress(5)
-        self._tools_widget.set_status("Analysis running")
-        self.statusBar().showMessage("Analysis running")
+        self._tools_widget.set_status(self.tr("Analysis running"))
+        self.statusBar().showMessage(self.tr("Analysis running"))
 
         profile = load_land_profile(self._tools_widget.profile_id())
         project_name = (
@@ -514,8 +514,8 @@ class MainWindow(QMainWindow):
             return
         self._analysis_thread.requestInterruption()
         self._tools_widget.set_cancel_enabled(False)
-        self._tools_widget.set_status("Cancel requested; waiting for current analysis step")
-        self.statusBar().showMessage("Cancel requested")
+        self._tools_widget.set_status(self.tr("Cancel requested; waiting for current analysis step"))
+        self.statusBar().showMessage(self.tr("Cancel requested"))
 
     def _on_progress(self, message: str) -> None:
         if message:
@@ -529,8 +529,8 @@ class MainWindow(QMainWindow):
         self._tools_widget.set_progress(100)
         self._tools_widget.set_analyze_enabled(True)
         self._tools_widget.set_cancel_enabled(False)
-        self._tools_widget.set_status("Analysis complete")
-        self.statusBar().showMessage("Analysis complete")
+        self._tools_widget.set_status(self.tr("Analysis complete"))
+        self.statusBar().showMessage(self.tr("Analysis complete"))
         self.display_results(result, project)  # type: ignore[arg-type]
         self.sidebar.setCurrentIndex(1)
         if isinstance(project, ProjectFile):
@@ -551,9 +551,9 @@ class MainWindow(QMainWindow):
         self._tools_widget.set_progress(0)
         self._tools_widget.set_analyze_enabled(True)
         self._tools_widget.set_cancel_enabled(False)
-        self._tools_widget.set_status("Analysis failed")
-        self.statusBar().showMessage("Analysis failed")
-        QMessageBox.critical(self, "Analysis failed", message)
+        self._tools_widget.set_status(self.tr("Analysis failed"))
+        self.statusBar().showMessage(self.tr("Analysis failed"))
+        QMessageBox.critical(self, self.tr("Analysis failed"), message)
 
     def _clear_worker(self) -> None:
         self._analysis_thread = None
@@ -570,12 +570,12 @@ class MainWindow(QMainWindow):
         if active:
             self.map_view.inject_click_handler()
             self.statusBar().showMessage(
-                "Click on the map to place a marker. Toggle off to cancel."
+                self.tr("Click on the map to place a marker. Toggle off to cancel.")
             )
             self.sidebar.setCurrentIndex(3)
         else:
             self.map_view.clear_click_handler()
-            self.statusBar().showMessage("Placement mode off")
+            self.statusBar().showMessage(self.tr("Placement mode off"))
 
     def _on_map_marker_placed(self, lat: float, lon: float) -> None:
         self._markers_widget.set_gps_coordinate(lat, lon)
@@ -589,7 +589,7 @@ class MainWindow(QMainWindow):
         try:
             lat, lon = parse_coordinate(coord_text)
         except ValueError as exc:
-            QMessageBox.warning(self, "Invalid coordinate", str(exc))
+            QMessageBox.warning(self, self.tr("Invalid coordinate"), str(exc))
             return
         marker = ManualMarker(name=name, lat=lat, lon=lon)
         frame = manual_marker_to_geodataframe(marker)
@@ -601,7 +601,7 @@ class MainWindow(QMainWindow):
         self._markers_widget.refresh_list()
         self._markers_widget.markers_changed.emit(self._markers_widget._marker_paths)
         self._markers_widget.clear_gps_fields()
-        self.statusBar().showMessage(f"Added marker: {name} ({lat:.6f}, {lon:.6f})")
+        self.statusBar().showMessage(self.tr("Added marker: {0} ({1}, {2})").format(name, lat, lon))
 
     def _on_markers_changed(self, paths: list[Path]) -> None:
         self._persist_marker_paths()
@@ -617,7 +617,7 @@ class MainWindow(QMainWindow):
 
     def _export_markers_gpx(self, save_path: str, marker_paths: list[Any]) -> None:
         if not marker_paths:
-            self.statusBar().showMessage("No markers to export")
+            self.statusBar().showMessage(self.tr("No markers to export"))
             return
         try:
             frames = []
@@ -633,15 +633,15 @@ class MainWindow(QMainWindow):
                 except Exception:  # noqa: BLE001
                     pass
             if not frames:
-                self.statusBar().showMessage("No readable markers to export")
+                self.statusBar().showMessage(self.tr("No readable markers to export"))
                 return
             import geopandas as gpd
 
             combined = gpd.GeoDataFrame(gpd.pd.concat(frames, ignore_index=True))
             to_gpx(combined, Path(save_path))
-            self.statusBar().showMessage(f"Exported markers to {Path(save_path).name}")
+            self.statusBar().showMessage(self.tr("Exported markers to {0}").format(Path(save_path).name))
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Export failed", str(exc))
+            QMessageBox.critical(self, self.tr("Export failed"), str(exc))
 
     def _regenerate_exports(self) -> None:
         if self._current_project is None:
@@ -674,8 +674,8 @@ class MainWindow(QMainWindow):
 
         reply = QMessageBox.question(
             self,
-            "Analysis running",
-            "Analysis is still running. Request cancellation and close when it stops?",
+            self.tr("Analysis running"),
+            self.tr("Analysis is still running. Request cancellation and close when it stops?"),
         )
         if reply != QMessageBox.StandardButton.Yes:
             event.ignore()
@@ -686,9 +686,8 @@ class MainWindow(QMainWindow):
         if not self._analysis_thread.wait(5000):
             QMessageBox.warning(
                 self,
-                "Analysis still running",
-                "The current analysis step is still running. "
-                "Close is postponed to avoid data loss.",
+                self.tr("Analysis still running"),
+                self.tr("The current analysis step is still running. Close is postponed to avoid data loss."),
             )
             event.ignore()
             return

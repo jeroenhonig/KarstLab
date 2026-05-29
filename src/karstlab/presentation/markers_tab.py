@@ -89,38 +89,38 @@ class MarkersTab(QWidget):
         layout.addLayout(self._import_row())
         layout.addWidget(self._poi_group())
 
-        layout.addWidget(QLabel("Imported markers:"))
+        layout.addWidget(QLabel(self.tr("Imported markers:")))
         self.marker_list = QListWidget()
         layout.addWidget(self.marker_list)
 
-        delete_button = QPushButton("Remove selected")
+        delete_button = QPushButton(self.tr("Remove selected"))
         delete_button.clicked.connect(self._remove_selected)
         layout.addWidget(delete_button)
         layout.addStretch(1)
 
     def _gps_group(self) -> QGroupBox:
-        group = QGroupBox("Add marker by coordinate")
+        group = QGroupBox(self.tr("Add marker by coordinate"))
         form = QFormLayout(group)
         self._gps_name_edit = QLineEdit()
-        self._gps_name_edit.setPlaceholderText("Marker name")
+        self._gps_name_edit.setPlaceholderText(self.tr("Marker name"))
         self._gps_coord_edit = QLineEdit()
-        self._gps_coord_edit.setPlaceholderText("44.1234, 1.5678  or  44°07′N 1°34′E")
-        gps_add_button = QPushButton("Add")
+        self._gps_coord_edit.setPlaceholderText(self.tr("44.1234, 1.5678  or  44°07′N 1°34′E"))
+        gps_add_button = QPushButton(self.tr("Add"))
         gps_add_button.clicked.connect(self._add_gps_marker)
-        form.addRow("Name", self._gps_name_edit)
-        form.addRow("Coordinate", self._gps_coord_edit)
+        form.addRow(self.tr("Name"), self._gps_name_edit)
+        form.addRow(self.tr("Coordinate"), self._gps_coord_edit)
         form.addRow("", gps_add_button)
         return group
 
     def _import_row(self) -> QHBoxLayout:
         row = QHBoxLayout()
-        gpx_button = QPushButton("Import GPX")
-        kml_button = QPushButton("Import KML")
-        export_gpx_button = QPushButton("Export GPX")
-        gpx_button.clicked.connect(lambda: self._import_marker_file("GPX", "*.gpx"))
-        kml_button.clicked.connect(lambda: self._import_marker_file("KML", "*.kml"))
+        gpx_button = QPushButton(self.tr("Import GPX"))
+        kml_button = QPushButton(self.tr("Import KML"))
+        export_gpx_button = QPushButton(self.tr("Export GPX"))
+        gpx_button.clicked.connect(lambda: self._import_marker_file(self.tr("GPX"), "*.gpx"))
+        kml_button.clicked.connect(lambda: self._import_marker_file(self.tr("KML"), "*.kml"))
         export_gpx_button.clicked.connect(self._export_gpx)
-        self._placement_button = QPushButton("Place on map")
+        self._placement_button = QPushButton(self.tr("Place on map"))
         self._placement_button.setCheckable(True)
         self._placement_button.toggled.connect(self._on_placement_toggled)
         row.addWidget(gpx_button)
@@ -130,18 +130,18 @@ class MarkersTab(QWidget):
         return row
 
     def _poi_group(self) -> QGroupBox:
-        group = QGroupBox("Load POI from online source")
+        group = QGroupBox(self.tr("Load POI from online source"))
         form = QFormLayout(group)
         self._poi_source_combo = QComboBox()
-        self._poi_source_combo.addItem("BRGM Cavités Géorisques", "brgm_cavites")
-        self._poi_source_combo.addItem("Spélébase (stub)", "spelebase")
+        self._poi_source_combo.addItem(self.tr("BRGM Cavités Géorisques"), "brgm_cavites")
+        self._poi_source_combo.addItem(self.tr("Spélébase (stub)"), "spelebase")
         self._poi_dept_combo = QComboBox()
         for code, name in sorted(FRENCH_DEPARTMENTS.items()):
             self._poi_dept_combo.addItem(f"{code} — {name}", code)
-        self._poi_fetch_button = QPushButton("Fetch")
+        self._poi_fetch_button = QPushButton(self.tr("Fetch"))
         self._poi_fetch_button.clicked.connect(self._fetch_poi)
-        form.addRow("Source", self._poi_source_combo)
-        form.addRow("Department", self._poi_dept_combo)
+        form.addRow(self.tr("Source"), self._poi_source_combo)
+        form.addRow(self.tr("Department"), self._poi_dept_combo)
         form.addRow("", self._poi_fetch_button)
         return group
 
@@ -191,9 +191,9 @@ class MarkersTab(QWidget):
     def _import_marker_file(self, label: str, pattern: str) -> None:
         path, _selected_filter = QFileDialog.getOpenFileName(
             self,
-            f"Import {label}",
+            self.tr("Import {0}").format(label),
             str(Path.home()),
-            f"{label} files ({pattern});;All files (*)",
+            self.tr("{0} files ({1});;All files (*)").format(label, pattern),
         )
         if not path:
             return
@@ -201,12 +201,12 @@ class MarkersTab(QWidget):
         try:
             markers = self._read_marker_points(marker_path)
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.warning(self, f"Import {label} failed", str(exc))
+            QMessageBox.warning(self, self.tr("Import {0} failed").format(label), str(exc))
             return
         if len(markers) == 0:
             QMessageBox.warning(
                 self,
-                f"No markers in {label}",
+                self.tr("No markers in {0}").format(label),
                 f"{marker_path.name} contains no readable waypoints or placemarks.",
             )
             return
@@ -215,17 +215,17 @@ class MarkersTab(QWidget):
         self.refresh_list()
         self.markers_changed.emit(self._marker_paths)
         count = len(markers)
-        suffix = "marker" if count == 1 else "markers"
-        self.status_updated.emit(f"Imported {count} {suffix}: {marker_path.name}")
+        suffix = self.tr("marker") if count == 1 else self.tr("markers")
+        self.status_updated.emit(self.tr("Imported {0} {1}: {2}").format(count, suffix, marker_path.name))
 
     def _export_gpx(self) -> None:
         if not self._marker_paths:
             return
         path, _selected_filter = QFileDialog.getSaveFileName(
             self,
-            "Export markers to GPX",
+            self.tr("Export markers to GPX"),
             str(Path.home() / "markers.gpx"),
-            "GPX (*.gpx);;All files (*)",
+            self.tr("GPX (*.gpx);;All files (*)"),
         )
         if path:
             self.gpx_export_save_requested.emit(path, self._marker_paths)
@@ -314,10 +314,9 @@ class MarkersTab(QWidget):
             return read_kml_points(path)
         raise ValueError(f"Unsupported marker format: {suffix}")
 
-    @staticmethod
-    def _marker_list_label(path: Path, markers: Any) -> str:
+    def _marker_list_label(self, path: Path, markers: Any) -> str:
         count = len(markers)
-        suffix = "marker" if count == 1 else "markers"
+        suffix = self.tr("marker") if count == 1 else self.tr("markers")
         names: list[str] = []
         if "name" in markers:
             names = [str(name) for name in markers["name"].dropna().head(3).to_list()]

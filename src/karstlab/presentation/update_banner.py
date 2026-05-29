@@ -73,7 +73,7 @@ class UpdateBanner(QFrame):
 
         layout.addStretch()
 
-        self._download_button = QPushButton("Download")
+        self._download_button = QPushButton(self.tr("Download"))
         self._download_button.clicked.connect(self._on_download_clicked)
         layout.addWidget(self._download_button)
 
@@ -87,7 +87,7 @@ class UpdateBanner(QFrame):
 
     def show_update(self, version: str, download_url: str = "") -> None:
         """Show the banner with the given version and optional download URL."""
-        self._message_label.setText(f"KarstLab {version} is available.")
+        self._message_label.setText(self.tr("KarstLab {0} is available.").format(version))
         self._download_url = download_url
         self.show()
 

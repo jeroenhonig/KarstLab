@@ -36,15 +36,15 @@ class ExportTab(QWidget):
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
 
-        open_group = QGroupBox("Open exported files")
+        open_group = QGroupBox(self.tr("Open exported files"))
         open_layout = QVBoxLayout(open_group)
         for key in (
-            "Open report",
-            "Open GeoJSON",
-            "Open KML",
-            "Open GPX",
-            "Open statistics JSON",
-            "Open map",
+            self.tr("Open report"),
+            self.tr("Open GeoJSON"),
+            self.tr("Open KML"),
+            self.tr("Open GPX"),
+            self.tr("Open statistics JSON"),
+            self.tr("Open map"),
         ):
             button = QPushButton(key)
             button.setEnabled(False)
@@ -55,10 +55,10 @@ class ExportTab(QWidget):
 
         self._generate_section = QWidget()
         gen_layout = QVBoxLayout(self._generate_section)
-        self._generate_label = QLabel("Run analysis first to generate exports.")
+        self._generate_label = QLabel(self.tr("Run analysis first to generate exports."))
         self._generate_label.setObjectName("secondaryText")
         gen_layout.addWidget(self._generate_label)
-        self._generate_button = QPushButton("Generate all")
+        self._generate_button = QPushButton(self.tr("Generate all"))
         self._generate_button.setVisible(False)
         self._generate_button.clicked.connect(self._on_generate_clicked)
         gen_layout.addWidget(self._generate_button)
@@ -80,10 +80,10 @@ class ExportTab(QWidget):
         self._project_name = project_name
         if self._generate_label is not None and self._generate_button is not None:
             if project_name:
-                self._generate_label.setText(f"Project: {project_name}")
+                self._generate_label.setText(self.tr("Project: {0}").format(project_name))
                 self._generate_button.setVisible(True)
             else:
-                self._generate_label.setText("Run analysis first to generate exports.")
+                self._generate_label.setText(self.tr("Run analysis first to generate exports."))
                 self._generate_button.setVisible(False)
 
     def export_buttons(self) -> list[QPushButton]:
