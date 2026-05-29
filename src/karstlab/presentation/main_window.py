@@ -189,8 +189,46 @@ class AnalysisWorker(QObject):
         self.progress.emit(message)
 
 
+_CLICK_HANDLER_JS = """
+(function() {
+    if (window._karstlab_click_active) return;
+    window._karstlab_click_active = true;
+    for (var k in window) {
+        try {
+            var o = window[k];
+            if (o && typeof o === 'object' && o._leaflet_id !== undefined
+                    && typeof o.on === 'function') {
+                o.on('click', function(e) {
+                    window.location.href = 'karstlab://addmarker?lat='
+                        + e.latlng.lat.toFixed(6) + '&lon='
+                        + e.latlng.lng.toFixed(6);
+                });
+            }
+        } catch (_) {}
+    }
+})();
+"""
+
+_CLEAR_CLICK_JS = """
+(function() {
+    window._karstlab_click_active = false;
+    for (var k in window) {
+        try {
+            var o = window[k];
+            if (o && typeof o === 'object' && o._leaflet_id !== undefined
+                    && typeof o.off === 'function') {
+                o.off('click');
+            }
+        } catch (_) {}
+    }
+})();
+"""
+
+
 class MapView(QWidget):
     """Map container using QWebEngineView when available, QTextBrowser otherwise."""
+
+    marker_placed = Signal(float, float)
 
     def __init__(self) -> None:
         super().__init__()
@@ -210,14 +248,47 @@ class MapView(QWidget):
 
     def _init_web_view(self, layout: QVBoxLayout) -> None:
         try:
+            from PySide6.QtCore import QUrlQuery
+            from PySide6.QtWebEngineCore import QWebEnginePage
             from PySide6.QtWebEngineWidgets import QWebEngineView
         except ImportError:
             self._fallback = QTextBrowser()
             self._fallback.setOpenExternalLinks(True)
             layout.addWidget(self._fallback)
-        else:
-            self._web_view = QWebEngineView()
-            layout.addWidget(self._web_view)
+            return
+
+        outer = self
+
+        class _KarstLabPage(QWebEnginePage):
+            def acceptNavigationRequest(
+                self_page,
+                url: Any,
+                nav_type: Any,
+                is_main_frame: bool,
+            ) -> bool:
+                if url.scheme() == "karstlab" and url.host() == "addmarker":
+                    q = QUrlQuery(url.query())
+                    try:
+                        lat = float(q.queryItemValue("lat"))
+                        lon = float(q.queryItemValue("lon"))
+                        outer.marker_placed.emit(lat, lon)
+                    except ValueError:
+                        pass
+                    return False
+                result: bool = super().acceptNavigationRequest(url, nav_type, is_main_frame)
+                return result
+
+        self._web_view = QWebEngineView()
+        self._web_view.setPage(_KarstLabPage(self._web_view))
+        layout.addWidget(self._web_view)
+
+    def inject_click_handler(self) -> None:
+        if self._web_view is not None:
+            self._web_view.page().runJavaScript(_CLICK_HANDLER_JS)
+
+    def clear_click_handler(self) -> None:
+        if self._web_view is not None:
+            self._web_view.page().runJavaScript(_CLEAR_CLICK_JS)
 
     def set_empty_state(self) -> None:
         self.set_html(
@@ -299,10 +370,13 @@ class MainWindow(QMainWindow):
         self.marker_list = QListWidget()
         self._poi_thread: QThread | None = None
         self._guided_step: int = 0
+        self._placement_mode: bool = False
+        self._placement_button: QPushButton | None = None
 
         self._build_layout()
         self._connect_signals()
         self._populate_profiles()
+        self.map_view.marker_placed.connect(self._on_map_marker_placed)
         self.statusBar().showMessage("Ready")
 
     def set_dem_path(self, path: Path) -> None:
@@ -558,14 +632,18 @@ class MainWindow(QMainWindow):
         gps_form.addRow("", gps_add_button)
         layout.addWidget(gps_group)
 
-        # --- File import ---
+        # --- File import + map placement ---
         import_row = QHBoxLayout()
         gpx_button = QPushButton("Import GPX")
         kml_button = QPushButton("Import KML")
         gpx_button.clicked.connect(lambda: self._import_marker_file("GPX", "*.gpx"))
         kml_button.clicked.connect(lambda: self._import_marker_file("KML", "*.kml"))
+        self._placement_button = QPushButton("Place on map")
+        self._placement_button.setCheckable(True)
+        self._placement_button.toggled.connect(self._toggle_placement_mode)
         import_row.addWidget(gpx_button)
         import_row.addWidget(kml_button)
+        import_row.addWidget(self._placement_button)
         layout.addLayout(import_row)
 
         # --- POI panel ---
@@ -825,6 +903,25 @@ class MainWindow(QMainWindow):
             "opacity"
         ] = value
         self.statusBar().showMessage(f"{layer} opacity: {value}%")
+
+    def _toggle_placement_mode(self, active: bool) -> None:
+        self._placement_mode = active
+        if active:
+            self.map_view.inject_click_handler()
+            self.statusBar().showMessage(
+                "Click on the map to place a marker. Toggle off to cancel."
+            )
+            self.sidebar.setCurrentIndex(3)  # Markers tab
+        else:
+            self.map_view.clear_click_handler()
+            self.statusBar().showMessage("Placement mode off")
+
+    def _on_map_marker_placed(self, lat: float, lon: float) -> None:
+        self._gps_coord_edit.setText(f"{lat:.6f}, {lon:.6f}")
+        if not self._gps_name_edit.text().strip():
+            self._gps_name_edit.setText(f"Marker {lat:.4f},{lon:.4f}")
+        self._gps_name_edit.setFocus()
+        self.statusBar().showMessage(f"Map click: {lat:.6f}, {lon:.6f} — enter name and click Add")
 
     def _add_gps_marker(self) -> None:
         coord_text = self._gps_coord_edit.text().strip()
