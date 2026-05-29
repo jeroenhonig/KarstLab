@@ -41,8 +41,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from karstlab.business.marker_manager import (
+    ManualMarker,
+    manual_marker_to_geodataframe,
+    parse_coordinate,
+    poi_records_to_geodataframe,
+)
 from karstlab.business.pipeline import run_headless_analysis
 from karstlab.data.land_profiles import list_land_profile_ids, load_land_profile
+from karstlab.data.poi import FRENCH_DEPARTMENTS, fetch_poi
 from karstlab.data.project_io import (
     canonical_output_paths,
     create_project,
@@ -61,6 +68,49 @@ AnalysisRunner = Callable[[ProjectFile, Callable[[str], None] | None], PipelineR
 
 class AnalysisCancelled(RuntimeError):
     """Raised when the GUI requests cooperative analysis cancellation."""
+
+
+_GUIDED_STEPS = [
+    "Download DEM tiles from the land profile DEM sources.",
+    "Select DEM file(s) in the Tools tab.",
+    "Choose land profile and project folder.",
+    "Click Analyze and wait for the pipeline to complete.",
+    "Review Top 25 depressions in the Results tab.",
+    "Export markers, KML, or GPX from the Export tab.",
+]
+
+
+class PoiFetchWorker(QObject):
+    """Fetch POI records off the UI thread."""
+
+    finished = Signal(list)  # list[PoiRecord]
+    failed = Signal(str)
+
+    def __init__(
+        self,
+        department: str,
+        sources: list[str],
+        *,
+        cache_dir: Path | None = None,
+        timeout: float = 10.0,
+    ) -> None:
+        super().__init__()
+        self._department = department
+        self._sources = sources
+        self._cache_dir = cache_dir
+        self._timeout = timeout
+
+    def run(self) -> None:
+        try:
+            records = fetch_poi(
+                self._department,
+                self._sources,
+                timeout=self._timeout,
+                cache_dir=self._cache_dir,
+            )
+            self.finished.emit(records)
+        except Exception as exc:  # noqa: BLE001
+            self.failed.emit(str(exc))
 
 
 class AnalysisWorker(QObject):
@@ -247,6 +297,8 @@ class MainWindow(QMainWindow):
         self.layer_sliders: dict[str, QSlider] = {}
         self.marker_paths: list[Path] = []
         self.marker_list = QListWidget()
+        self._poi_thread: QThread | None = None
+        self._guided_step: int = 0
 
         self._build_layout()
         self._connect_signals()
@@ -360,7 +412,42 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.map_view)
+        layout.addWidget(self._guided_workflow_bar())
         return panel
+
+    def _guided_workflow_bar(self) -> QWidget:
+        self._guided_bar = QFrame()
+        self._guided_bar.setObjectName("guidedBar")
+        bar_layout = QHBoxLayout(self._guided_bar)
+        bar_layout.setContentsMargins(12, 8, 12, 8)
+        self._guided_label = QLabel(self._guided_step_text())
+        self._guided_label.setObjectName("secondaryText")
+        self._guided_label.setWordWrap(True)
+        prev_btn = QPushButton("◀")
+        prev_btn.setFixedWidth(32)
+        prev_btn.clicked.connect(self._guided_prev)
+        next_btn = QPushButton("▶")
+        next_btn.setFixedWidth(32)
+        next_btn.clicked.connect(self._guided_next)
+        bar_layout.addWidget(prev_btn)
+        bar_layout.addWidget(self._guided_label, 1)
+        bar_layout.addWidget(next_btn)
+        return self._guided_bar
+
+    def _guided_step_text(self) -> str:
+        step = self._guided_step
+        total = len(_GUIDED_STEPS)
+        return f"Step {step + 1}/{total}: {_GUIDED_STEPS[step]}"
+
+    def _guided_prev(self) -> None:
+        if self._guided_step > 0:
+            self._guided_step -= 1
+            self._guided_label.setText(self._guided_step_text())
+
+    def _guided_next(self) -> None:
+        if self._guided_step < len(_GUIDED_STEPS) - 1:
+            self._guided_step += 1
+            self._guided_label.setText(self._guided_step_text())
 
     def _sidebar_panel(self) -> QWidget:
         panel = QWidget()
@@ -455,16 +542,56 @@ class MainWindow(QMainWindow):
     def _markers_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        layout.addWidget(
-            _placeholder("Marker import, GPS entry, and POI tools are queued for Phase 7.")
-        )
+        layout.setSpacing(10)
+
+        # --- GPS coordinate entry ---
+        gps_group = QGroupBox("Add marker by coordinate")
+        gps_form = QFormLayout(gps_group)
+        self._gps_name_edit = QLineEdit()
+        self._gps_name_edit.setPlaceholderText("Marker name")
+        self._gps_coord_edit = QLineEdit()
+        self._gps_coord_edit.setPlaceholderText("44.1234, 1.5678  or  44°07′N 1°34′E")
+        gps_add_button = QPushButton("Add")
+        gps_add_button.clicked.connect(self._add_gps_marker)
+        gps_form.addRow("Name", self._gps_name_edit)
+        gps_form.addRow("Coordinate", self._gps_coord_edit)
+        gps_form.addRow("", gps_add_button)
+        layout.addWidget(gps_group)
+
+        # --- File import ---
+        import_row = QHBoxLayout()
         gpx_button = QPushButton("Import GPX")
         kml_button = QPushButton("Import KML")
         gpx_button.clicked.connect(lambda: self._import_marker_file("GPX", "*.gpx"))
         kml_button.clicked.connect(lambda: self._import_marker_file("KML", "*.kml"))
-        layout.addWidget(gpx_button)
-        layout.addWidget(kml_button)
+        import_row.addWidget(gpx_button)
+        import_row.addWidget(kml_button)
+        layout.addLayout(import_row)
+
+        # --- POI panel ---
+        poi_group = QGroupBox("Load POI from online source")
+        poi_form = QFormLayout(poi_group)
+        self._poi_source_combo = QComboBox()
+        self._poi_source_combo.addItem("BRGM Cavités Géorisques", "brgm_cavites")
+        self._poi_source_combo.addItem("Spélébase (stub)", "spelebase")
+        self._poi_dept_combo = QComboBox()
+        for code, name in sorted(FRENCH_DEPARTMENTS.items()):
+            self._poi_dept_combo.addItem(f"{code} — {name}", code)
+        self._poi_fetch_button = QPushButton("Fetch")
+        self._poi_fetch_button.clicked.connect(self._fetch_poi)
+        poi_form.addRow("Source", self._poi_source_combo)
+        poi_form.addRow("Department", self._poi_dept_combo)
+        poi_form.addRow("", self._poi_fetch_button)
+        layout.addWidget(poi_group)
+
+        # --- Marker list ---
+        layout.addWidget(QLabel("Imported markers:"))
         layout.addWidget(self.marker_list)
+
+        # Delete selected button
+        delete_button = QPushButton("Remove selected")
+        delete_button.clicked.connect(self._remove_selected_marker)
+        layout.addWidget(delete_button)
         layout.addStretch(1)
         return tab
 
@@ -699,6 +826,94 @@ class MainWindow(QMainWindow):
         ] = value
         self.statusBar().showMessage(f"{layer} opacity: {value}%")
 
+    def _add_gps_marker(self) -> None:
+        coord_text = self._gps_coord_edit.text().strip()
+        name = self._gps_name_edit.text().strip() or "Marker"
+        try:
+            lat, lon = parse_coordinate(coord_text)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Invalid coordinate", str(exc))
+            return
+        marker = ManualMarker(name=name, lat=lat, lon=lon)
+        frame = manual_marker_to_geodataframe(marker)
+        tmp_path = _manual_marker_tmp_path(name, lat, lon)
+        from karstlab.data.vector_io import to_gpx as _to_gpx
+
+        tmp_path.parent.mkdir(parents=True, exist_ok=True)
+        _to_gpx(frame, tmp_path)
+        if tmp_path not in self.marker_paths:
+            self.marker_paths.append(tmp_path)
+        self._refresh_marker_list()
+        self._persist_marker_paths()
+        self._gps_coord_edit.clear()
+        self._gps_name_edit.clear()
+        self.statusBar().showMessage(f"Added marker: {name} ({lat:.6f}, {lon:.6f})")
+
+    def _fetch_poi(self) -> None:
+        if self._poi_thread is not None and self._poi_thread.isRunning():
+            self.statusBar().showMessage("POI fetch already running")
+            return
+        department = self._poi_dept_combo.currentData()
+        source = self._poi_source_combo.currentData()
+        self._poi_fetch_button.setEnabled(False)
+        self.statusBar().showMessage(f"Fetching {source} POI for department {department}…")
+        cache_dir = (
+            self._current_project.cache_dir if self._current_project is not None else None
+        )
+        worker = PoiFetchWorker(department, [source], cache_dir=cache_dir)
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.finished.connect(lambda recs: self._on_poi_finished(recs, department, source))
+        worker.failed.connect(self._on_poi_failed)
+        worker.finished.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        thread.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(self._clear_poi_thread)
+        self._poi_thread = thread
+        thread.start()
+
+    def _on_poi_finished(self, records: list[Any], department: str, source: str) -> None:
+        self._poi_fetch_button.setEnabled(True)
+        if not records:
+            self.statusBar().showMessage(
+                f"No POI found for {source} / department {department}"
+            )
+            return
+        frame = poi_records_to_geodataframe(records)
+        cache_dir = (
+            self._current_project.cache_dir if self._current_project is not None else None
+        )
+        tmp_path = _poi_tmp_path(source, department, cache_dir)
+        from karstlab.data.vector_io import to_gpx as _to_gpx
+
+        tmp_path.parent.mkdir(parents=True, exist_ok=True)
+        _to_gpx(frame, tmp_path)
+        if tmp_path not in self.marker_paths:
+            self.marker_paths.append(tmp_path)
+        self._refresh_marker_list()
+        self._persist_marker_paths()
+        self.statusBar().showMessage(
+            f"Loaded {len(records)} POI from {source} / department {department}"
+        )
+
+    def _on_poi_failed(self, message: str) -> None:
+        self._poi_fetch_button.setEnabled(True)
+        self.statusBar().showMessage(f"POI fetch failed: {message}")
+
+    def _clear_poi_thread(self) -> None:
+        self._poi_thread = None
+
+    def _remove_selected_marker(self) -> None:
+        selected = self.marker_list.currentRow()
+        if selected < 0 or selected >= len(self.marker_paths):
+            return
+        removed = self.marker_paths.pop(selected)
+        self._refresh_marker_list()
+        self._persist_marker_paths()
+        self.statusBar().showMessage(f"Removed marker: {removed.name}")
+
     def _import_marker_file(self, label: str, pattern: str) -> None:
         path, _selected_filter = QFileDialog.getOpenFileName(
             self,
@@ -851,6 +1066,16 @@ def _marker_list_label(path: Path, markers: Any) -> str:
     return f"{path.name} ({count} {suffix}){name_preview}"
 
 
+def _manual_marker_tmp_path(name: str, lat: float, lon: float) -> Path:
+    safe_name = "".join(c if c.isalnum() else "-" for c in name)[:32]
+    return _default_project_base_dir() / "_markers" / f"manual-{safe_name}-{lat:.4f}-{lon:.4f}.gpx"
+
+
+def _poi_tmp_path(source: str, department: str, cache_dir: Path | None) -> Path:
+    base = cache_dir if cache_dir else _default_project_base_dir() / "_poi"
+    return base / "poi" / f"{source}_{department}.gpx"
+
+
 def _default_project_base_dir() -> Path:
     return Path(tempfile.gettempdir()) / "karstlab-gui-projects"
 
@@ -959,6 +1184,9 @@ def _stylesheet() -> str:
     }
     QTabWidget::pane, QGroupBox, QFrame#placeholder {
         border: 1px solid #3a4058; border-radius: 6px;
+    }
+    QFrame#guidedBar {
+        background: #1f2433; border-top: 1px solid #3a4058;
     }
     QTabBar::tab { background: #242938; color: #9ca3b8; padding: 8px 10px; }
     QTabBar::tab:hover { background: #2d3348; color: #e8eaf0; }
