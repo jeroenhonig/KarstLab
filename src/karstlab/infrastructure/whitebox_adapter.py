@@ -145,10 +145,6 @@ class WhiteboxAdapter:
     ) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with self._temporary_work_dir(output_path.parent):
-            # Pass only the filename (not the absolute path) so that WhiteboxTools
-            # resolves the output relative to the temporary work_dir, which equals
-            # output_path.parent. Passing an absolute path confuses some Whitebox
-            # versions into writing elsewhere.
             result = self.tools.fill_depressions(
                 str(dem_path),
                 output_path.name,
@@ -157,6 +153,13 @@ class WhiteboxAdapter:
                 max_depth=max_depth,
                 callback=callback,
             )
+        # Some Whitebox versions ignore --output and write the output using the
+        # input DEM stem as the filename (e.g. "dem.tif" instead of the requested
+        # name). Detect and rename so _checked_output finds the expected path.
+        if result in (0, None) and not output_path.exists():
+            stem_candidate = output_path.parent / (Path(str(dem_path)).stem + ".tif")
+            if stem_candidate.exists() and stem_candidate != output_path:
+                stem_candidate.rename(output_path)
         return self._checked_output("fill_depressions", result, output_path)
 
     def d8_pointer(

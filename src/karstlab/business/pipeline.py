@@ -395,18 +395,20 @@ def _load_project_profile(project: ProjectFile) -> LandProfile | None:
         return None
 
 
-_PROFILE_TILES: dict[str, str] = {
-    "generic": "OpenStreetMap",
-    "nl": "OpenStreetMap",
-    "be": "OpenStreetMap",
-    "fr": "CartoDB positron",
-}
-
-
 def _profile_tiles(profile: LandProfile | None) -> str:
+    """Return a Folium tiles string from the profile's first XYZ tile layer.
+
+    WMTS and WMS layers require API keys or custom setup — skip them and use
+    the first plain tile layer instead. Falls back to OpenStreetMap.
+    """
     if profile is None:
         return "OpenStreetMap"
-    return _PROFILE_TILES.get(profile.id, "OpenStreetMap")
+    from karstlab.data.schemas import LayerType
+
+    for layer in profile.map_layers.base:
+        if layer.type == LayerType.TILE:
+            return str(layer.url)
+    return "OpenStreetMap"
 
 
 def _wgs84_bounds(

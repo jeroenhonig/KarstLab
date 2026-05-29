@@ -77,6 +77,32 @@ def test_partial_ui_overrides_use_lower_levels_for_other_fields(tmp_path) -> Non
     assert result.stream_threshold_cells == 500
 
 
+def test_default_user_settings_do_not_override_land_profile_defaults(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """UserSettings() saved and reloaded must not shadow land-profile values.
+
+    This is the round-trip regression: save_user_settings uses model_dump()
+    which writes all fields including defaults. On reload every field appears
+    in the JSON, so model_fields_set is full. The resolver must compare against
+    built-in defaults instead of relying on model_fields_set.
+    """
+    import json
+
+    from karstlab.data.schemas import UserSettings
+    from karstlab.data.user_settings import save_user_settings
+
+    settings_path = tmp_path / "settings.json"
+    # Simulate what happens after any save: all fields present in JSON
+    save_user_settings(UserSettings(), settings_path)
+    # Reload so model_fields_set is empty (all fields come from JSON)
+    loaded = UserSettings.model_validate(
+        json.loads(settings_path.read_text(encoding="utf-8"))
+    )
+    # Land profile nl has contour_interval_m=1.0 (non-default)
+    nl_profile = load_land_profile("nl")
+    result = resolve_analysis_params(user_settings=loaded, land_profile=nl_profile)
+    assert result.contour_interval_m == nl_profile.analysis_defaults.contour_interval_m
+
+
 def test_result_is_valid_analysis_params() -> None:
     result = resolve_analysis_params(
         ui_overrides={"contour_interval_m": 5.0},

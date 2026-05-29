@@ -10,10 +10,19 @@ _DEFAULTS = AnalysisParams()
 _FIELDS = list(AnalysisParams.model_fields)
 
 
+_DEFAULT_DUMP = _DEFAULTS.model_dump()
+
+
 def _explicit(params: AnalysisParams) -> dict[str, Any]:
-    """Return only fields the user explicitly set (not Pydantic defaults)."""
+    """Return only fields whose value differs from the built-in AnalysisParams defaults.
+
+    model_fields_set is empty after a JSON round-trip because Pydantic treats every
+    field in the payload as explicitly provided. Comparing against the built-in
+    defaults is the only reliable way to distinguish intentional overrides from
+    values that happen to equal the default.
+    """
     dump = params.model_dump()
-    return {k: dump[k] for k in params.model_fields_set}
+    return {k: v for k, v in dump.items() if v != _DEFAULT_DUMP[k]}
 
 
 def resolve_analysis_params(
