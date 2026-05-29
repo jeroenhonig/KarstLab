@@ -114,6 +114,8 @@ class FakeWhiteboxTools:
         self.calls.append((name, args, kwargs))
         self.call_work_dirs.append(self.work_dir)
         output = Path(str(args[1]))
+        if not output.is_absolute() and self.work_dir:
+            output = Path(self.work_dir) / output
         if self.create_output:
             output.parent.mkdir(parents=True, exist_ok=True)
             output.write_text(name, encoding="utf-8")

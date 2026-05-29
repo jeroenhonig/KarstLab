@@ -8,6 +8,8 @@ from pathlib import Path
 from karstlab.business.pipeline import run_headless_analysis
 from karstlab.data.land_profiles import load_land_profile
 from karstlab.data.project_io import create_project, save_project, slugify_project_name
+from karstlab.data.settings_resolver import resolve_analysis_params
+from karstlab.data.user_settings import load_user_settings
 from karstlab.infrastructure.whitebox_adapter import WhiteboxAdapter
 from karstlab.version import __version__
 
@@ -62,6 +64,7 @@ def run_analyze(args: argparse.Namespace) -> int:
             raise SystemExit(f"DEM does not exist: {dem_path}")
 
     profile = load_land_profile(args.profile)
+    user_settings = load_user_settings()
     project_name = args.name or dem_paths[0].stem
     project = create_project(
         base_dir=args.project_dir.resolve(),
@@ -69,7 +72,10 @@ def run_analyze(args: argparse.Namespace) -> int:
         slug=slugify_project_name(project_name),
         land_profile=profile.id,
         crs_analysis=profile.default_crs,
-        analysis_params=profile.analysis_defaults,
+        analysis_params=resolve_analysis_params(
+            user_settings=user_settings,
+            land_profile=profile,
+        ),
         overwrite=args.overwrite,
     )
     project = save_project(project.model_copy(update={"dem_paths": dem_paths}))

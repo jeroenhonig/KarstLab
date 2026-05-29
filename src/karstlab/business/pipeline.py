@@ -24,10 +24,12 @@ from karstlab.data.analysis_exports import (
     write_statistics,
     write_top25_vector_exports,
 )
+from karstlab.data.land_profiles import load_land_profile
 from karstlab.data.project_io import canonical_output_paths
 from karstlab.data.raster_io import read_dem, save_geotiff
 from karstlab.data.schemas import (
     AnalysisParams,
+    LandProfile,
     PipelineResult,
     PipelineStatus,
     PipelineStepResult,
@@ -210,6 +212,7 @@ def run_headless_analysis(
     paths["interactive_map"].parent.mkdir(parents=True, exist_ok=True)
     streams = _stream_raster_to_geodataframe(hydrology_outputs.streams)
     contours_labeled = _label_contours(contours)
+    land_profile = _load_project_profile(project)
     paths["interactive_map"].write_text(
         render_top_depressions_map_html(
             result.top_depressions,
@@ -242,6 +245,7 @@ def run_headless_analysis(
                 )
             ],
             imported_marker_layers=_imported_marker_layers(project),
+            tiles=_profile_tiles(land_profile),
         ),
         encoding="utf-8",
     )
@@ -382,6 +386,27 @@ def _imported_marker_layers(project: ProjectFile) -> list[MapLayerSpec]:
             )
         )
     return layers
+
+
+def _load_project_profile(project: ProjectFile) -> LandProfile | None:
+    try:
+        return load_land_profile(project.land_profile, fallback=True)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+_PROFILE_TILES: dict[str, str] = {
+    "generic": "OpenStreetMap",
+    "nl": "OpenStreetMap",
+    "be": "OpenStreetMap",
+    "fr": "CartoDB positron",
+}
+
+
+def _profile_tiles(profile: LandProfile | None) -> str:
+    if profile is None:
+        return "OpenStreetMap"
+    return _PROFILE_TILES.get(profile.id, "OpenStreetMap")
 
 
 def _wgs84_bounds(

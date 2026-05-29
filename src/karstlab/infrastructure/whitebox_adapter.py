@@ -145,9 +145,13 @@ class WhiteboxAdapter:
     ) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with self._temporary_work_dir(output_path.parent):
+            # Pass only the filename (not the absolute path) so that WhiteboxTools
+            # resolves the output relative to the temporary work_dir, which equals
+            # output_path.parent. Passing an absolute path confuses some Whitebox
+            # versions into writing elsewhere.
             result = self.tools.fill_depressions(
                 str(dem_path),
-                str(output_path),
+                output_path.name,
                 fix_flats=fix_flats,
                 flat_increment=flat_increment,
                 max_depth=max_depth,

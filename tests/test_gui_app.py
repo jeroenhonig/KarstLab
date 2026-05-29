@@ -140,7 +140,7 @@ def test_analysis_worker_logs_failure(tmp_path: Path) -> None:
         raise RuntimeError("synthetic failure")
 
     worker = AnalysisWorker(
-        dem_path=tmp_path / "dem.tif",
+        dem_paths=[tmp_path / "dem.tif"],
         project_base_dir=tmp_path,
         project_name="Failure Project",
         profile_id="generic",
@@ -253,7 +253,7 @@ def test_marker_paths_are_persisted_in_analysis_worker_project(tmp_path: Path) -
         )
 
     worker = AnalysisWorker(
-        dem_path=tmp_path / "dem.tif",
+        dem_paths=[tmp_path / "dem.tif"],
         project_base_dir=tmp_path,
         project_name="Marker Project",
         profile_id="generic",

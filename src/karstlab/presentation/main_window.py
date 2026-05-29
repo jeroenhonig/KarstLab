@@ -50,6 +50,7 @@ from karstlab.data.project_io import (
     save_project,
 )
 from karstlab.data.schemas import AnalysisParams, DepressionResult, PipelineResult, ProjectFile
+from karstlab.data.settings_resolver import resolve_analysis_params
 from karstlab.data.user_settings import add_recent_project, load_user_settings, save_user_settings
 from karstlab.data.vector_io import read_gpx_waypoints, read_kml_points
 from karstlab.infrastructure.whitebox_adapter import WhiteboxAdapter
@@ -72,7 +73,7 @@ class AnalysisWorker(QObject):
     def __init__(
         self,
         *,
-        dem_path: Path,
+        dem_paths: list[Path],
         project_base_dir: Path,
         project_name: str,
         profile_id: str,
@@ -81,7 +82,7 @@ class AnalysisWorker(QObject):
         runner: AnalysisRunner | None = None,
     ) -> None:
         super().__init__()
-        self._dem_path = dem_path
+        self._dem_paths = dem_paths
         self._project_base_dir = project_base_dir
         self._project_name = project_name
         self._profile_id = profile_id
@@ -104,7 +105,7 @@ class AnalysisWorker(QObject):
             project = save_project(
                 project.model_copy(
                     update={
-                        "dem_paths": [self._dem_path],
+                        "dem_paths": self._dem_paths,
                         "marker_paths": self._marker_paths,
                     }
                 )
@@ -260,6 +261,21 @@ class MainWindow(QMainWindow):
     def selected_dem_path(self) -> Path | None:
         text = self.dem_path_edit.text().strip()
         return Path(text) if text else None
+
+    def _resolve_dem_paths(self) -> list[Path]:
+        """Return DEM paths for the next analysis run.
+
+        Uses the loaded project's dem_paths when available (preserves multi-tile
+        context), otherwise falls back to the single path in the QLineEdit.
+        """
+        if self._current_project is not None and self._current_project.dem_paths:
+            existing = [p for p in self._current_project.dem_paths if p.exists()]
+            if existing:
+                return existing
+        single = self.selected_dem_path()
+        if single is not None and single.exists():
+            return [single]
+        return []
 
     def display_results(
         self,
@@ -529,7 +545,12 @@ class MainWindow(QMainWindow):
         self.project_dir_edit.setText(str(project.project_dir.parent))
 
         if project.dem_paths:
-            self.dem_path_edit.setText(str(project.dem_paths[0]))
+            if len(project.dem_paths) == 1:
+                self.dem_path_edit.setText(str(project.dem_paths[0]))
+            else:
+                self.dem_path_edit.setText(
+                    f"[{len(project.dem_paths)} tiles] {project.dem_paths[0].parent}"
+                )
 
         profile_index = self.profile_combo.findText(project.land_profile)
         if profile_index >= 0:
@@ -601,8 +622,8 @@ class MainWindow(QMainWindow):
             )
 
     def _start_analysis(self) -> None:
-        dem_path = self.selected_dem_path()
-        if dem_path is None or not dem_path.exists():
+        dem_paths = self._resolve_dem_paths()
+        if not dem_paths:
             QMessageBox.warning(
                 self,
                 "DEM required",
@@ -617,12 +638,22 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Analysis running")
         self.statusBar().showMessage("Analysis running")
 
+        profile = load_land_profile(self.profile_combo.currentText())
+        project_name = (
+            self._current_project.name
+            if self._current_project is not None
+            else dem_paths[0].stem
+        )
         worker = AnalysisWorker(
-            dem_path=dem_path,
+            dem_paths=dem_paths,
             project_base_dir=Path(self.project_dir_edit.text()).expanduser(),
-            project_name=dem_path.stem,
-            profile_id=self.profile_combo.currentText(),
-            analysis_params=load_land_profile(self.profile_combo.currentText()).analysis_defaults,
+            project_name=project_name,
+            profile_id=profile.id,
+            analysis_params=resolve_analysis_params(
+                project=self._current_project,
+                user_settings=self._user_settings,
+                land_profile=profile,
+            ),
             marker_paths=self.marker_paths,
             runner=self._analysis_runner,
         )
