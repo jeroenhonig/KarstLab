@@ -58,12 +58,15 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - [x] Add first hydrology wrapper.
 - [x] Run local WhiteboxTools hydrology smoke on synthetic DEM.
 - [x] Address Whitebox adapter review findings.
+- [x] Add scientific DEM validator.
+- [x] Add terrain helpers.
 
 ## TODO Queue
 
-1. Ask Claude Code to verify Whitebox adapter review fixes.
-2. Start DEM validator and terrain helpers after Claude confirms no blockers.
-4. Defer `contours_to_vector()` until contour generation exists in Phase 4.
+1. Ask Claude Code to review the parallel Phase 2 DEM validator and terrain helper slice.
+2. Address Claude Code findings on DEM validator and terrain helpers.
+3. Start Phase 3 doline detection and ranking after Phase 2 review is clear.
+4. Defer `contours_to_vector()` until contour generation exists in Phase 3/4.
 
 ## Blockers
 
@@ -99,7 +102,8 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28T16:47:00+02:00 | Phase 1 vector I/O review fixes | Fixed non-mutating KML description generation, replaced fragile CRS string comparison with semantic pyproj CRS equality, and validated GPX geometry type before writing | Validation: `make PYTHON=.venv/bin/python test` pass (64 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 - 2026-05-28T22:10:00+02:00 | Phase 2 Whitebox adapter start | Added `WhiteboxAdapter` with executable/version access, command forwarding, output/error checks, and `HydrologyAnalyzer` for breach/fill, D8 pointer, flow accumulation, and stream extraction | Validation: `make PYTHON=.venv/bin/python test` pass (70 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass; real WhiteboxTools smoke on synthetic DEM creates `dem_filled.tif`, `d8_pointer.tif`, `flow_accum.tif`, and `streams.tif`.
 - 2026-05-29T09:41:00+02:00 | Phase 2 adapter review fixes | Added callback parameters and forwarding across Whitebox adapter and hydrology wrapper methods, introduced a business-layer `HydrologyBackend` protocol, and removed the business layer's concrete dependency on infrastructure | Validation: `make PYTHON=.venv/bin/python test` pass (72 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
+- 2026-05-29T09:51:00+02:00 | Phase 2 parallel validator and terrain | Parallel agent session added the scientific DEM validator and terrain helpers for hillshade, slope, and curvature, with business-layer exports | Validation: `make PYTHON=.venv/bin/python test` pass (90 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 
 ## Next Action
 
-Ask Claude Code to verify Whitebox adapter review fixes.
+Ask Claude Code to review the parallel Phase 2 DEM validator and terrain helper slice.
