@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Lock
 from typing import Protocol
 
 from whitebox.whitebox_tools import WhiteboxTools
@@ -70,6 +72,9 @@ class WhiteboxToolsLike(Protocol):
 
 class WhiteboxRunError(RuntimeError):
     """Raised when a WhiteboxTools command fails."""
+
+
+_WORK_DIR_LOCK = Lock()
 
 
 @dataclass(frozen=True)
@@ -139,14 +144,15 @@ class WhiteboxAdapter:
         callback: Callable[[str], None] | None = None,
     ) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        result = self.tools.fill_depressions(
-            str(dem_path),
-            str(output_path),
-            fix_flats=fix_flats,
-            flat_increment=flat_increment,
-            max_depth=max_depth,
-            callback=callback,
-        )
+        with self._temporary_work_dir(output_path.parent):
+            result = self.tools.fill_depressions(
+                str(dem_path),
+                str(output_path),
+                fix_flats=fix_flats,
+                flat_increment=flat_increment,
+                max_depth=max_depth,
+                callback=callback,
+            )
         return self._checked_output("fill_depressions", result, output_path)
 
     def d8_pointer(
@@ -215,3 +221,13 @@ class WhiteboxAdapter:
         if not output_path.exists():
             raise WhiteboxRunError(f"{tool_name} did not create expected output: {output_path}")
         return output_path
+
+    @contextmanager
+    def _temporary_work_dir(self, work_dir: Path):  # type: ignore[no-untyped-def]
+        with _WORK_DIR_LOCK:
+            original_work_dir = self.tools.work_dir
+            self.tools.work_dir = str(work_dir)
+            try:
+                yield
+            finally:
+                self.tools.work_dir = original_work_dir

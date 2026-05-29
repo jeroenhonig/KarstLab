@@ -17,6 +17,14 @@ class HydrologyBackend(Protocol):
         callback: Callable[[str], None] | None = None,
     ) -> Path: ...
 
+    def fill_depressions(
+        self,
+        dem_path: Path,
+        output_path: Path,
+        *,
+        callback: Callable[[str], None] | None = None,
+    ) -> Path: ...
+
     def d8_pointer(
         self,
         dem_path: Path,

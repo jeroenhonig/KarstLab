@@ -14,6 +14,7 @@ class FakeWhiteboxTools:
         self.exit_code = exit_code
         self.create_output = create_output
         self.calls: list[tuple[str, tuple[object, ...], dict[str, object]]] = []
+        self.call_work_dirs: list[str] = []
 
     def version(self) -> str:
         return "WhiteboxTools v2.4.0\nDetails"
@@ -111,6 +112,7 @@ class FakeWhiteboxTools:
 
     def _record(self, name: str, *args: object, **kwargs: object) -> int | None:
         self.calls.append((name, args, kwargs))
+        self.call_work_dirs.append(self.work_dir)
         output = Path(str(args[1]))
         if self.create_output:
             output.parent.mkdir(parents=True, exist_ok=True)
@@ -188,6 +190,18 @@ def test_adapter_forwards_callbacks_to_each_tool(tmp_path) -> None:  # type: ign
     )
 
     assert [call[2]["callback"] for call in tools.calls] == [callback, callback, callback, callback]
+
+
+def test_fill_depressions_uses_output_parent_work_dir_and_restores_original(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    tools = FakeWhiteboxTools()
+    tools.work_dir = str(tmp_path / "original-work")
+    adapter = WhiteboxAdapter(tools=tools)
+    output = tmp_path / "filled" / "dem.tif"
+
+    adapter.fill_depressions(tmp_path / "dem.tif", output)
+
+    assert tools.call_work_dirs == [str(output.parent)]
+    assert tools.work_dir == str(tmp_path / "original-work")
 
 
 def test_adapter_raises_on_nonzero_exit_code(tmp_path) -> None:  # type: ignore[no-untyped-def]

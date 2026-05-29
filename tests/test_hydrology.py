@@ -21,6 +21,17 @@ class FakeWhiteboxAdapter:
             callback("breach")
         return self._write("breach_depressions_least_cost", dem_path, output_path)
 
+    def fill_depressions(
+        self,
+        dem_path: Path,
+        output_path: Path,
+        *,
+        callback: Callable[[str], None] | None = None,
+    ) -> Path:
+        if callback is not None:
+            callback("fill")
+        return self._write("fill_depressions", dem_path, output_path)
+
     def d8_pointer(
         self,
         dem_path: Path,
