@@ -1,0 +1,159 @@
+"""Results display widget for depression analysis results."""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
+from karstlab.data.schemas import DepressionResult, PipelineResult, ProjectFile
+
+
+class ResultsTab(QWidget):
+    """Display analysis results in a top 25 table and full depression list."""
+
+    depression_selected = Signal(str, float, float)
+
+    def __init__(self) -> None:
+        super().__init__()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
+
+        self._summary_label = QLabel("No analysis results")
+        layout.addWidget(self._summary_label)
+
+        self._table = QTableWidget(0, 6)
+        self._table.setHorizontalHeaderLabels(
+            ["Rank", "ID", "Depth m", "Area m²", "Lat/Lon", "Flags"]
+        )
+        self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._table.verticalHeader().setVisible(False)
+        self._table.horizontalHeader().setStretchLastSection(True)
+        self._table.itemSelectionChanged.connect(self._on_table_selection_changed)
+        layout.addWidget(self._table)
+
+        self._list_label = QLabel("All depressions (0 total)")
+        layout.addWidget(self._list_label)
+
+        self._list = QListWidget()
+        self._list.itemSelectionChanged.connect(self._on_list_selection_changed)
+        layout.addWidget(self._list)
+
+    def display_results(
+        self,
+        result: PipelineResult | Sequence[DepressionResult],
+        project: ProjectFile | None = None,
+    ) -> None:
+        """Display analysis results.
+
+        Args:
+            result: PipelineResult or sequence of DepressionResult objects.
+            project: Optional ProjectFile for context.
+        """
+        depressions = (
+            result.depressions if isinstance(result, PipelineResult) else list(result)
+        )
+        top = result.top_depressions if isinstance(result, PipelineResult) else list(result)
+
+        self._summary_label.setText(
+            f"{len(depressions)} depressions detected; {len(top)} ranked results"
+        )
+
+        self._table.setRowCount(len(top))
+        for row, depression in enumerate(top):
+            rank_str = (
+                str(depression.rank) if depression.rank is not None else str(row + 1)
+            )
+            flags_str = self._format_flags(depression)
+
+            values = [
+                rank_str,
+                depression.id,
+                f"{depression.max_depth_m:.2f}",
+                f"{depression.area_m2:.1f}",
+                f"{depression.centroid.lat:.6f}, {depression.centroid.lon:.6f}",
+                flags_str,
+            ]
+
+            for col, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                self._table.setItem(row, col, item)
+
+        self._list_label.setText(f"All depressions ({len(depressions)} total)")
+        self._list.clear()
+        for depression in depressions:
+            rank_str = (
+                f"#{depression.rank}" if depression.rank is not None else "unranked"
+            )
+            text = f"{rank_str} - {depression.id} ({depression.max_depth_m:.2f}m)"
+            item = QListWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, depression.id)
+            item.setData(Qt.ItemDataRole.UserRole + 1, depression.centroid.lat)
+            item.setData(Qt.ItemDataRole.UserRole + 2, depression.centroid.lon)
+            self._list.addItem(item)
+
+    def clear(self) -> None:
+        """Reset to empty state."""
+        self._summary_label.setText("No analysis results")
+        self._table.setRowCount(0)
+        self._list_label.setText("All depressions (0 total)")
+        self._list.clear()
+
+    @property
+    def table(self) -> QTableWidget:
+        """Return the top 25 results table for backward compatibility."""
+        return self._table
+
+    def _format_flags(self, depression: DepressionResult) -> str:
+        """Format quality flags as a compact string."""
+        flags = []
+        if depression.quality_flags.edge_proximity:
+            flags.append("⚠ edge")
+        if depression.quality_flags.nodata_adjacent:
+            flags.append("⚠ nodata")
+        if depression.quality_flags.nested:
+            flags.append("⚠ nested")
+        if depression.quality_flags.depth_confidence.value == "low":
+            flags.append("↓ conf")
+        return " ".join(flags)
+
+    def _on_table_selection_changed(self) -> None:
+        """Emit depression_selected when a table row is selected."""
+        indexes = self._table.selectionModel().selectedRows()
+        if not indexes:
+            return
+        selected = [idx.row() for idx in indexes]
+        if selected:
+            row = selected[0]
+            depression_id = self._table.item(row, 1).text()
+            lat_lon = self._table.item(row, 4).text()
+            lat_str, lon_str = lat_lon.split(", ")
+            lat = float(lat_str)
+            lon = float(lon_str)
+            self.depression_selected.emit(depression_id, lat, lon)
+
+    def _on_list_selection_changed(self) -> None:
+        """Emit depression_selected when a list item is selected."""
+        selected = self._list.selectedItems()
+        if selected:
+            item = selected[0]
+            depression_id = item.data(Qt.ItemDataRole.UserRole)
+            lat = item.data(Qt.ItemDataRole.UserRole + 1)
+            lon = item.data(Qt.ItemDataRole.UserRole + 2)
+            self.depression_selected.emit(depression_id, lat, lon)
+
+
+__all__ = ["ResultsTab"]
