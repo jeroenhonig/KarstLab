@@ -103,3 +103,8 @@ def test_rank_depressions_rejects_invalid_limit() -> None:
 
     with pytest.raises(ValueError, match="rank limit"):
         DepressionRanker(limit=0)
+
+
+def test_rank_depressions_accepts_empty_list() -> None:
+    assert rank_depressions([]) == []
+    assert DepressionRanker().rank([]) == []

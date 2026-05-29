@@ -32,11 +32,36 @@ def test_extract_contours_returns_empty_frame_when_no_internal_levels() -> None:
     assert list(contours.columns) == ["elevation_m", "geometry"]
 
 
+def test_extract_contours_returns_empty_frame_for_all_nan_dem() -> None:
+    dem = np.full((3, 3), np.nan, dtype=np.float64)
+
+    contours = extract_contours(dem, transform=Affine.identity(), interval_m=1.0)
+
+    assert contours.empty
+    assert list(contours.columns) == ["elevation_m", "geometry"]
+
+
 def test_extract_contours_rejects_non_positive_interval() -> None:
     dem = np.zeros((3, 3), dtype=np.float64)
 
     with pytest.raises(ValueError, match="interval"):
         extract_contours(dem, transform=Affine.identity(), interval_m=0.0)
+
+
+def test_extract_contours_rejects_negative_interval() -> None:
+    dem = np.zeros((3, 3), dtype=np.float64)
+
+    with pytest.raises(ValueError, match="interval"):
+        extract_contours(dem, transform=Affine.identity(), interval_m=-1.0)
+
+
+def test_extract_contours_accepts_2x2_dem() -> None:
+    dem = np.array([[0.0, 1.0], [0.0, 1.0]], dtype=np.float64)
+
+    contours = extract_contours(dem, transform=Affine.identity(), interval_m=0.5)
+
+    assert len(contours) == 1
+    assert contours.iloc[0].elevation_m == pytest.approx(0.5)
 
 
 def test_extract_contours_rejects_non_2d_arrays() -> None:

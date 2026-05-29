@@ -65,12 +65,13 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - [x] Add fill-subtract doline detector.
 - [x] Add depression ranking helpers.
 - [x] Add contour extraction helpers.
+- [x] Address Phase 3 review findings.
 
 ## TODO Queue
 
-1. Ask Claude Code to review Phase 3 doline detection, ranking, and contours.
-2. Address Claude Code findings on doline detection/ranking/contours.
-3. Start Phase 4 exporter, provenance, and statistics after Phase 3 review is clear.
+1. Ask Claude Code to verify Phase 3 review fixes.
+2. Start Phase 4 exporter, provenance, and statistics after Phase 3 fixes are clear.
+3. Continue parallel development with isolated file ownership for Phase 4.
 
 ## Blockers
 
@@ -109,7 +110,8 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-29T09:51:00+02:00 | Phase 2 parallel validator and terrain | Parallel agent session added the scientific DEM validator and terrain helpers for hillshade, slope, and curvature, with business-layer exports | Validation: `make PYTHON=.venv/bin/python test` pass (90 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 - 2026-05-29T10:09:00+02:00 | Phase 2 validator and terrain review fixes | Fixed NaN NoData masking in DEM validation, added minimum 2x2 terrain-array guard, exported `CellSize`, and expanded validator/terrain tests for NaN NoData, multi-band rasters, rectangular cell sizes, and negative tuple cell size | Validation: `make PYTHON=.venv/bin/python test` pass (94 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 - 2026-05-29T10:13:00+02:00 | Phase 3 parallel dolines/ranking/contours | Parallel agent session added fill-subtract doline detection, deterministic depression ranking, and contour extraction as GeoDataFrame LineStrings | Validation: `make PYTHON=.venv/bin/python test` pass (110 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
+- 2026-05-29T13:37:00+02:00 | Phase 3 review fixes | Exported doline detector symbols, standardized doline centroids and geometries to WGS84, added required-CRS validation, cached CRS transformers per detection run, switched pixel area to affine determinant, documented depth confidence thresholds, and filled Phase 3 test gaps | Validation: `make PYTHON=.venv/bin/python test` pass (117 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 
 ## Next Action
 
-Ask Claude Code to review Phase 3 doline detection, ranking, and contours.
+Ask Claude Code to verify Phase 3 review fixes.

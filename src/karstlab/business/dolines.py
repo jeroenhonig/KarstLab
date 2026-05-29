@@ -42,6 +42,9 @@ class DolineDetector:
         crs: CRS | str | None = None,
         nodata: float | int | None = None,
     ) -> list[DepressionResult]:
+        if crs is None:
+            raise ValueError("crs is required for WGS84 depression centroid and geometry output")
+
         original = _as_2d_float(original_dem, name="original_dem")
         filled = _as_2d_float(filled_dem, name="filled_dem")
         if original.shape != filled.shape:
@@ -53,7 +56,8 @@ class DolineDetector:
         candidate_mask = depth >= self.params.min_depth_m
 
         labels, count = ndimage.label(candidate_mask)
-        pixel_area = abs(transform.a * transform.e)
+        pixel_area = abs((transform.a * transform.e) - (transform.b * transform.d))
+        transformer = _wgs84_transformer(crs)
         depressions: list[DepressionResult] = []
         for label_id in range(1, count + 1):
             component = labels == label_id
@@ -63,14 +67,14 @@ class DolineDetector:
                 continue
 
             rows, cols = np.where(component)
-            centroid = _centroid(rows, cols, transform, crs=crs)
+            centroid = _centroid(rows, cols, transform, transformer=transformer)
             depressions.append(
                 DepressionResult(
                     id=f"doline-{len(depressions) + 1:04d}",
                     max_depth_m=max_depth,
                     area_m2=area,
                     centroid=centroid,
-                    geometry=_component_polygon(rows, cols, transform),
+                    geometry=_component_polygon(rows, cols, transform, transformer=transformer),
                     quality_flags=DepressionQualityFlags(
                         edge_proximity=_touches_edge(component, self.params.edge_buffer_cells),
                         nodata_adjacent=_adjacent_to_nodata(component, nodata_mask),
@@ -127,25 +131,29 @@ def _centroid(
     cols: np.ndarray,
     transform: Affine,
     *,
-    crs: CRS | str | None,
+    transformer: Transformer | None,
 ) -> Coordinate:
     row = float(np.mean(rows))
     col = float(np.mean(cols))
-    x, y = transform * (col + 0.5, row + 0.5)
-    if crs is not None and CRS.from_user_input(crs) != CRS.from_epsg(4326):
-        x, y = Transformer.from_crs(crs, "EPSG:4326", always_xy=True).transform(x, y)
+    x, y = _to_wgs84(transform * (col + 0.5, row + 0.5), transformer=transformer)
     return Coordinate(lat=float(y), lon=float(x))
 
 
-def _component_polygon(rows: np.ndarray, cols: np.ndarray, transform: Affine) -> dict[str, object]:
+def _component_polygon(
+    rows: np.ndarray,
+    cols: np.ndarray,
+    transform: Affine,
+    *,
+    transformer: Transformer | None,
+) -> dict[str, object]:
     min_row = int(np.min(rows))
     max_row = int(np.max(rows)) + 1
     min_col = int(np.min(cols))
     max_col = int(np.max(cols)) + 1
-    top_left = transform * (min_col, min_row)
-    top_right = transform * (max_col, min_row)
-    bottom_right = transform * (max_col, max_row)
-    bottom_left = transform * (min_col, max_row)
+    top_left = _to_wgs84(transform * (min_col, min_row), transformer=transformer)
+    top_right = _to_wgs84(transform * (max_col, min_row), transformer=transformer)
+    bottom_right = _to_wgs84(transform * (max_col, max_row), transformer=transformer)
+    bottom_left = _to_wgs84(transform * (min_col, max_row), transformer=transformer)
     return {
         "type": "Polygon",
         "coordinates": [[top_left, top_right, bottom_right, bottom_left, top_left]],
@@ -173,6 +181,7 @@ def _adjacent_to_nodata(component: np.ndarray, nodata_mask: np.ndarray) -> bool:
 
 
 def _depth_confidence(max_depth: float) -> DepthConfidence:
+    """Map depth to confidence: LOW <0.5m, MEDIUM 0.5-2m, HIGH >=2m."""
     if max_depth >= 2.0:
         return DepthConfidence.HIGH
     if max_depth >= 0.5:
@@ -188,3 +197,21 @@ def _shape_regularity(component: np.ndarray) -> float:
         return 1.0
     compactness = (4.0 * np.pi * area) / (perimeter * perimeter)
     return float(np.clip(compactness, 0.0, 1.0))
+
+
+def _wgs84_transformer(crs: CRS | str) -> Transformer | None:
+    source_crs = CRS.from_user_input(crs)
+    if source_crs == CRS.from_epsg(4326):
+        return None
+    return Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
+
+
+def _to_wgs84(
+    coordinate: tuple[float, float],
+    *,
+    transformer: Transformer | None,
+) -> tuple[float, float]:
+    if transformer is None:
+        return float(coordinate[0]), float(coordinate[1])
+    x, y = transformer.transform(coordinate[0], coordinate[1])
+    return float(x), float(y)

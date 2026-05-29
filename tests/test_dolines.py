@@ -40,6 +40,10 @@ def test_detect_dolines_finds_three_known_synthetic_depressions() -> None:
     assert all(depression.geometry["type"] == "Polygon" for depression in depressions)
     assert all(-90.0 <= depression.centroid.lat <= 90.0 for depression in depressions)
     assert all(-180.0 <= depression.centroid.lon <= 180.0 for depression in depressions)
+    for depression in depressions:
+        ring = depression.geometry["coordinates"][0]
+        assert all(-180.0 <= lon <= 180.0 for lon, _lat in ring)
+        assert all(-90.0 <= lat <= 90.0 for _lon, lat in ring)
 
 
 def test_detect_dolines_applies_depth_and_area_filters() -> None:
@@ -52,6 +56,7 @@ def test_detect_dolines_applies_depth_and_area_filters() -> None:
         original,
         filled,
         transform=from_origin(0.0, 10.0, 1.0, 1.0),
+        crs="EPSG:4326",
         params=DolineDetectionParams(min_depth_m=1.0, max_depth_m=10.0, min_area_m2=5.0),
     )
 
@@ -71,6 +76,7 @@ def test_detect_dolines_sets_edge_and_nodata_quality_flags() -> None:
         original,
         filled,
         transform=from_origin(0.0, 8.0, 1.0, 1.0),
+        crs="EPSG:4326",
         nodata=SYNTHETIC_DEM_NODATA,
     )
 
@@ -88,7 +94,7 @@ def test_detect_dolines_depth_confidence_thresholds() -> None:
 
     depressions = DolineDetector(
         params=DolineDetectionParams(min_depth_m=0.25, min_area_m2=1.0)
-    ).detect(original, filled, transform=from_origin(0.0, 8.0, 1.0, 1.0))
+    ).detect(original, filled, transform=from_origin(0.0, 8.0, 1.0, 1.0), crs="EPSG:4326")
 
     assert [depression.quality_flags.depth_confidence for depression in depressions] == [
         DepthConfidence.LOW,
@@ -102,6 +108,7 @@ def test_detect_dolines_rejects_mismatched_shapes() -> None:
             np.zeros((5, 5), dtype=np.float32),
             np.zeros((6, 5), dtype=np.float32),
             transform=from_origin(0.0, 5.0, 1.0, 1.0),
+            crs="EPSG:4326",
         )
 
 
@@ -111,4 +118,42 @@ def test_detect_dolines_rejects_non_2d_arrays() -> None:
             np.zeros((2, 3, 4), dtype=np.float32),
             np.zeros((2, 3, 4), dtype=np.float32),
             transform=from_origin(0.0, 5.0, 1.0, 1.0),
+            crs="EPSG:4326",
         )
+
+
+def test_detect_dolines_returns_empty_list_for_flat_dem() -> None:
+    dem = np.zeros((8, 8), dtype=np.float32)
+
+    depressions = detect_dolines(
+        dem,
+        dem.copy(),
+        transform=from_origin(0.0, 8.0, 1.0, 1.0),
+        crs="EPSG:4326",
+    )
+
+    assert depressions == []
+
+
+def test_detect_dolines_requires_crs() -> None:
+    dem = np.zeros((8, 8), dtype=np.float32)
+
+    with pytest.raises(ValueError, match="crs is required"):
+        detect_dolines(dem, dem.copy(), transform=from_origin(0.0, 8.0, 1.0, 1.0))
+
+
+def test_detect_dolines_accepts_single_pixel_component() -> None:
+    original = np.zeros((5, 5), dtype=np.float32)
+    filled = original.copy()
+    filled[2, 2] = 1.0
+
+    depressions = detect_dolines(
+        original,
+        filled,
+        transform=from_origin(0.0, 5.0, 1.0, 1.0),
+        crs="EPSG:4326",
+    )
+
+    assert len(depressions) == 1
+    assert depressions[0].area_m2 == 1.0
+    assert depressions[0].quality_flags.shape_regularity == 1.0

@@ -12,6 +12,7 @@ from karstlab.business.depression_ranker import (
     DepressionRanker,
     rank_depressions,
 )
+from karstlab.business.dolines import DolineDetectionParams, DolineDetector, detect_dolines
 from karstlab.business.hydrology import HydrologyAnalyzer, HydrologyBackend, HydrologyOutputs
 from karstlab.business.terrain import CellSize, curvature, hillshade, slope
 
@@ -22,6 +23,8 @@ __all__ = [
     "DemValidationIssue",
     "DemValidationResult",
     "DepressionRanker",
+    "DolineDetectionParams",
+    "DolineDetector",
     "HydrologyAnalyzer",
     "HydrologyBackend",
     "HydrologyOutputs",
@@ -29,6 +32,7 @@ __all__ = [
     "curvature",
     "extract_contours",
     "hillshade",
+    "detect_dolines",
     "rank_depressions",
     "slope",
 ]
