@@ -186,7 +186,7 @@ class DEMValidator:
             return issues
 
         array = dataset.read(1)
-        nodata_mask = array == dataset.nodata
+        nodata_mask = np.isnan(array) if np.isnan(dataset.nodata) else array == dataset.nodata
         nodata_fraction = float(np.count_nonzero(nodata_mask)) / float(array.size)
         if nodata_fraction > self.max_nodata_fraction:
             issues.append(

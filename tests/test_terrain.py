@@ -36,6 +36,16 @@ def test_slope_accepts_affine_transform_cell_size() -> None:
     np.testing.assert_allclose(angles, 45.0, atol=0.1)
 
 
+def test_slope_accepts_rectangular_tuple_cell_size() -> None:
+    x = np.arange(6, dtype=np.float64) * 2.0
+    y = np.arange(6, dtype=np.float64)[:, None] * 3.0
+    dem = x + y
+
+    angles = slope(dem, cell_size=(2.0, 3.0))
+
+    np.testing.assert_allclose(angles, np.rad2deg(np.arctan(np.sqrt(2.0))), atol=0.1)
+
+
 def test_curvature_sign_matches_concave_and_convex_surfaces() -> None:
     axis = np.linspace(-2.0, 2.0, 7)
     x_grid, y_grid = np.meshgrid(axis, axis)
@@ -56,6 +66,15 @@ def test_terrain_helpers_reject_non_2d_arrays() -> None:
         slope(np.zeros((2, 3, 4), dtype=np.float64))
 
 
+def test_terrain_helpers_reject_arrays_smaller_than_2x2() -> None:
+    with pytest.raises(ValueError, match="2x2 DEM"):
+        slope(np.zeros((1, 2), dtype=np.float64))
+    with pytest.raises(ValueError, match="2x2 DEM"):
+        slope(np.zeros((2, 1), dtype=np.float64))
+
+
 def test_terrain_helpers_reject_non_positive_cell_size() -> None:
     with pytest.raises(ValueError, match="cell size"):
         curvature(np.zeros((3, 3), dtype=np.float64), cell_size=0.0)
+    with pytest.raises(ValueError, match="cell size"):
+        curvature(np.zeros((3, 3), dtype=np.float64), cell_size=(-5.0, 10.0))

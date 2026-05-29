@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import rasterio
 from rasterio.crs import CRS
 from rasterio.transform import from_origin
 
@@ -136,6 +137,45 @@ def test_validator_warns_on_large_nodata_coverage(tmp_path) -> None:  # type: ig
 
     assert "nodata_coverage" in _warning_ids(result)
     assert "edge_artifacts" in _warning_ids(result)
+
+
+def test_validator_handles_nan_nodata_masks(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    array = np.ones((10, 10), dtype=np.float32)
+    array[0, :] = np.nan
+    array[:, 0] = np.nan
+    path = save_geotiff(
+        tmp_path / "nan_nodata.tif",
+        array,
+        crs=SYNTHETIC_DEM_CRS,
+        transform=from_origin(0.0, 10.0, 1.0, 1.0),
+        nodata=np.nan,
+    )
+
+    result = DEMValidator(max_nodata_fraction=0.1).validate(path)
+
+    assert "nodata_coverage" in _warning_ids(result)
+    assert "edge_artifacts" in _warning_ids(result)
+
+
+def test_validator_warns_on_multiband_dem(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "multiband.tif"
+    with rasterio.open(
+        path,
+        "w",
+        driver="GTiff",
+        height=10,
+        width=10,
+        count=2,
+        dtype="float32",
+        crs=SYNTHETIC_DEM_CRS,
+        transform=from_origin(0.0, 10.0, 1.0, 1.0),
+        nodata=SYNTHETIC_DEM_NODATA,
+    ) as dataset:
+        dataset.write(np.ones((2, 10, 10), dtype=np.float32))
+
+    result = DEMValidator().validate(path)
+
+    assert "band_count" in _warning_ids(result)
 
 
 def test_validator_rejects_insufficient_disk_space(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
