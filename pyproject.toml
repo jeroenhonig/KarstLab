@@ -66,9 +66,9 @@ path = "src/karstlab/version.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra -m 'not network'"
 markers = [
-  "network: tests that require external network access",
+  "network: tests that require external network access (skipped by default; run with -m network to enable)",
 ]
 
 [tool.ruff]
