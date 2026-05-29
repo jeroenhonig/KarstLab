@@ -5,9 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from html import escape
-from typing import Any, Protocol
+from pathlib import Path
+from typing import Any, Protocol, TypeGuard, cast
 
 import folium
+from folium.raster_layers import ImageOverlay
 
 from karstlab.data.schemas import DepressionResult
 
@@ -33,11 +35,31 @@ class MapLayerSpec:
     style: Mapping[str, Any] | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class ImageLayerSpec:
+    """Optional raster image overlay definition for Folium overlays."""
+
+    name: str
+    image: str | Path | Any
+    bounds: Sequence[Sequence[float]]
+    show: bool = False
+    opacity: float = 0.65
+
+
+MapLayerInput = MapLayerSpec | Sequence[MapLayerSpec] | GeoJsonLike | None
+ImageLayerInput = ImageLayerSpec | Sequence[ImageLayerSpec] | None
+
+
 def build_top_depressions_map(
     depressions: Sequence[DepressionResult],
     *,
+    hillshade_layers: ImageLayerInput = (),
+    hillshade_layer: ImageLayerSpec | None = None,
     contour_layers: Sequence[MapLayerSpec] = (),
+    stream_layers: Sequence[MapLayerSpec] = (),
     vector_layers: Sequence[MapLayerSpec] = (),
+    imported_marker_layers: MapLayerInput = (),
+    imported_markers: GeoJsonLike | None = None,
     max_results: int = 25,
     tiles: str = "OpenStreetMap",
     zoom_start: int = 13,
@@ -53,8 +75,15 @@ def build_top_depressions_map(
 
     _add_depression_geometries(folium_map, selected)
     _add_numbered_markers(folium_map, selected)
+    _add_image_layers(folium_map, "Hillshade", _image_layers(hillshade_layers, hillshade_layer))
     _add_overlay_layers(folium_map, "Contours", contour_layers)
+    _add_overlay_layers(folium_map, "Streams", stream_layers)
     _add_overlay_layers(folium_map, "Vectors", vector_layers)
+    _add_overlay_layers(
+        folium_map,
+        "Imported markers",
+        _map_layers(imported_marker_layers, "Imported markers", imported_markers),
+    )
 
     folium.LayerControl(collapsed=False).add_to(folium_map)
     return folium_map
@@ -63,8 +92,13 @@ def build_top_depressions_map(
 def render_top_depressions_map_html(
     depressions: Sequence[DepressionResult],
     *,
+    hillshade_layers: ImageLayerInput = (),
+    hillshade_layer: ImageLayerSpec | None = None,
     contour_layers: Sequence[MapLayerSpec] = (),
+    stream_layers: Sequence[MapLayerSpec] = (),
     vector_layers: Sequence[MapLayerSpec] = (),
+    imported_marker_layers: MapLayerInput = (),
+    imported_markers: GeoJsonLike | None = None,
     max_results: int = 25,
     tiles: str = "OpenStreetMap",
     zoom_start: int = 13,
@@ -74,8 +108,13 @@ def render_top_depressions_map_html(
     return (
         build_top_depressions_map(
             depressions,
+            hillshade_layers=hillshade_layers,
+            hillshade_layer=hillshade_layer,
             contour_layers=contour_layers,
+            stream_layers=stream_layers,
             vector_layers=vector_layers,
+            imported_marker_layers=imported_marker_layers,
+            imported_markers=imported_markers,
             max_results=max_results,
             tiles=tiles,
             zoom_start=zoom_start,
@@ -151,6 +190,53 @@ def _add_numbered_markers(folium_map: folium.Map, depressions: Sequence[Depressi
     marker_group.add_to(folium_map)
 
 
+def _image_layers(
+    layers: ImageLayerInput, additional_layer: ImageLayerSpec | None = None
+) -> tuple[ImageLayerSpec, ...]:
+    if layers is None:
+        normalized: tuple[ImageLayerSpec, ...] = ()
+    elif isinstance(layers, ImageLayerSpec):
+        normalized = (layers,)
+    else:
+        normalized = tuple(layers)
+
+    if additional_layer is None:
+        return normalized
+    return (*normalized, additional_layer)
+
+
+def _add_image_layers(
+    folium_map: folium.Map, group_name: str, layers: Sequence[ImageLayerSpec]
+) -> None:
+    for layer in layers:
+        ImageOverlay(
+            image=str(layer.image) if isinstance(layer.image, Path) else layer.image,
+            bounds=layer.bounds,
+            name=f"{group_name}: {layer.name}",
+            opacity=layer.opacity,
+            show=layer.show,
+        ).add_to(folium_map)
+
+
+def _map_layers(
+    layers: MapLayerInput,
+    default_name: str,
+    additional_data: GeoJsonLike | None = None,
+) -> tuple[MapLayerSpec, ...]:
+    if layers is None:
+        normalized: tuple[MapLayerSpec, ...] = ()
+    elif isinstance(layers, MapLayerSpec):
+        normalized = (layers,)
+    elif _is_geojson_like(layers):
+        normalized = (MapLayerSpec(name=default_name, data=layers, show=True),)
+    else:
+        normalized = tuple(cast(Sequence[MapLayerSpec], layers))
+
+    if additional_data is None:
+        return normalized
+    return (*normalized, MapLayerSpec(name=default_name, data=additional_data, show=True))
+
+
 def _add_overlay_layers(
     folium_map: folium.Map, group_name: str, layers: Sequence[MapLayerSpec]
 ) -> None:
@@ -173,6 +259,10 @@ def _geojson_data(data: GeoJsonLike) -> Mapping[str, Any]:
     if isinstance(data, Mapping):
         return data
     return data.__geo_interface__
+
+
+def _is_geojson_like(data: object) -> TypeGuard[GeoJsonLike]:
+    return isinstance(data, Mapping) or hasattr(data, "__geo_interface__")
 
 
 def _depression_properties(depression: DepressionResult, index: int) -> dict[str, Any]:

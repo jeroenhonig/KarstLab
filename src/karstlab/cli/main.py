@@ -22,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("doctor", help="Check the local KarstLab runtime environment.")
     analyze = subparsers.add_parser("analyze", help="Run headless DEM analysis.")
-    analyze.add_argument("dem", type=Path, help="Input GeoTIFF DEM path.")
+    analyze.add_argument("dem", type=Path, nargs="+", help="Input GeoTIFF DEM path(s).")
     analyze.add_argument(
         "--project-dir",
         type=Path,
@@ -56,12 +56,13 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def run_analyze(args: argparse.Namespace) -> int:
-    dem_path = args.dem.resolve()
-    if not dem_path.exists():
-        raise SystemExit(f"DEM does not exist: {dem_path}")
+    dem_paths = [path.resolve() for path in args.dem]
+    for dem_path in dem_paths:
+        if not dem_path.exists():
+            raise SystemExit(f"DEM does not exist: {dem_path}")
 
     profile = load_land_profile(args.profile)
-    project_name = args.name or dem_path.stem
+    project_name = args.name or dem_paths[0].stem
     project = create_project(
         base_dir=args.project_dir.resolve(),
         name=project_name,
@@ -71,7 +72,7 @@ def run_analyze(args: argparse.Namespace) -> int:
         analysis_params=profile.analysis_defaults,
         overwrite=args.overwrite,
     )
-    project = save_project(project.model_copy(update={"dem_paths": [dem_path]}))
+    project = save_project(project.model_copy(update={"dem_paths": dem_paths}))
 
     result = run_headless_analysis(
         project,

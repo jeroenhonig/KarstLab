@@ -5,13 +5,16 @@ import importlib
 import os
 import sys
 from collections.abc import Iterator, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from uuid import uuid4
 
 import pytest
 
-from karstlab.data.schemas import AnalysisParams, DepressionResult
+from karstlab.data.project_io import create_project
+from karstlab.data.schemas import AnalysisParams, DepressionResult, PipelineResult, PipelineStatus
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -177,7 +180,14 @@ def test_marker_import_buttons_track_selected_files(
     monkeypatch: pytest.MonkeyPatch, main_window: Any, tmp_path: Path
 ) -> None:
     marker_path = tmp_path / "markers.gpx"
-    marker_path.write_text("<gpx />", encoding="utf-8")
+    marker_path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="KarstLab test">
+  <wpt lat="44.1" lon="1.2"><name>Sinkhole A</name></wpt>
+</gpx>
+""",
+        encoding="utf-8",
+    )
     monkeypatch.setattr(
         QtWidgets.QFileDialog,
         "getOpenFileName",
@@ -192,7 +202,108 @@ def test_marker_import_buttons_track_selected_files(
     button.click()
 
     assert main_window.marker_paths == [marker_path]
+    assert main_window.marker_list.item(0).text() == "markers.gpx (1 marker): Sinkhole A"
     assert marker_path.name in main_window.statusBar().currentMessage()
+
+
+def test_kml_marker_import_uses_kml_reader_and_lists_placemarks(
+    monkeypatch: pytest.MonkeyPatch, main_window: Any, tmp_path: Path
+) -> None:
+    marker_path = tmp_path / "markers.kml"
+    marker_path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>Cave entrance</name>
+      <Point><coordinates>1.2,44.1,0</coordinates></Point>
+    </Placemark>
+  </Document>
+</kml>
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        QtWidgets.QFileDialog,
+        "getOpenFileName",
+        lambda *_args, **_kwargs: (str(marker_path), "KML files (*.kml)"),
+    )
+    button = next(
+        child
+        for child in main_window.findChildren(QtWidgets.QPushButton)
+        if child.text() == "Import KML"
+    )
+
+    button.click()
+
+    assert main_window.marker_paths == [marker_path]
+    assert main_window.marker_list.item(0).text() == "markers.kml (1 marker): Cave entrance"
+
+
+def test_marker_paths_are_persisted_in_analysis_worker_project(tmp_path: Path) -> None:
+    from karstlab.presentation.main_window import AnalysisWorker
+
+    marker_path = tmp_path / "markers.gpx"
+    captured_marker_paths: list[Path] = []
+
+    def runner(project: Any, _callback: Any) -> PipelineResult:
+        captured_marker_paths.extend(project.marker_paths)
+        return _pipeline_result(
+            [_depression("doline-alpha", rank=1, max_depth_m=4.25, area_m2=125.0)]
+        )
+
+    worker = AnalysisWorker(
+        dem_path=tmp_path / "dem.tif",
+        project_base_dir=tmp_path,
+        project_name="Marker Project",
+        profile_id="generic",
+        analysis_params=AnalysisParams(),
+        marker_paths=[marker_path],
+        runner=runner,
+    )
+
+    worker.run()
+
+    assert captured_marker_paths == [marker_path]
+    project_file = tmp_path / "marker-project" / "project.karstlab"
+    assert str(marker_path) in project_file.read_text(encoding="utf-8")
+
+
+def test_default_analysis_runner_delegates_marker_project_to_pipeline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import karstlab.presentation.main_window as main_window_module
+
+    marker_path = tmp_path / "markers.gpx"
+    marker_path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="KarstLab test">
+  <wpt lat="44.1" lon="1.2"><name>Sinkhole A</name></wpt>
+</gpx>
+""",
+        encoding="utf-8",
+    )
+    project = create_project(
+        base_dir=tmp_path,
+        name="Marker Map",
+        land_profile="generic",
+        crs_analysis="EPSG:2154",
+        overwrite=True,
+    ).model_copy(update={"marker_paths": [marker_path]})
+    result = _pipeline_result(
+        [_depression("doline-alpha", rank=1, max_depth_m=4.25, area_m2=125.0)]
+    )
+    captured_projects: list[Any] = []
+    def runner(pipeline_project: Any, **_kwargs: Any) -> PipelineResult:
+        captured_projects.append(pipeline_project)
+        return result
+
+    monkeypatch.setattr(main_window_module, "run_headless_analysis", runner)
+
+    returned = main_window_module._default_analysis_runner(project, callback=None)
+
+    assert returned is result
+    assert captured_projects[0].marker_paths == [marker_path]
 
 
 def test_stylesheet_includes_phase4_polish_rules() -> None:
@@ -348,4 +459,19 @@ def _depression(
                 ],
             },
         }
+    )
+
+
+def _pipeline_result(depressions: list[DepressionResult]) -> PipelineResult:
+    return PipelineResult(
+        project_id=uuid4(),
+        status=PipelineStatus.SUCCESS,
+        started_at=datetime(2026, 5, 29, 9, 0, tzinfo=UTC),
+        finished_at=datetime(2026, 5, 29, 9, 5, tzinfo=UTC),
+        land_profile="generic",
+        analysis_params=AnalysisParams(),
+        input_dem_paths=[Path("dem.tif")],
+        output_dir=Path("output"),
+        depressions=depressions,
+        top_depressions=depressions,
     )

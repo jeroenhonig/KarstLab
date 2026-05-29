@@ -21,13 +21,14 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 
 ## Current Phase
 
-- Phase: Phase 4 - Minimal GUI review gate
-- Objective: Verify the first PySide6 workflow that selects a DEM, runs the validated headless pipeline, and displays map/results.
+- Phase: Phase 5 - ARIS Core Parity review gate
+- Objective: Verify ARIS core integration: multi-tile DEM assembly, terrain derivatives, map overlays, and GPX/KML marker import.
 - Exit criteria:
-  - User can select DEM, run analysis, see map and Top 25 results.
-  - Pipeline failure shows actionable error and log location.
-  - GUI remains responsive during analysis.
-  - Claude Code review clears Phase 4 before Phase 5 starts.
+  - Multi-tile VRT analysis works from CLI and pipeline tests.
+  - Hillshade, slope, and curvature rasters are generated and recorded.
+  - Hillshade, streams, contours, and imported markers can render on the Folium map.
+  - GPX/KML marker import is wired through the GUI state and project model.
+  - Claude Code review clears Phase 5 before Phase 6 starts.
 
 ## Phase Checklist
 
@@ -83,12 +84,20 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - [x] Add Top 25 results table rendering.
 - [x] Add headless GUI smoke tests.
 - [x] Address Phase 4 review blockers and minor findings.
+- [x] Integrate multi-tile VRT assembly into the headless pipeline.
+- [x] Add terrain derivative rasters to canonical outputs and pipeline steps.
+- [x] Add hillshade, stream, contour, and imported-marker overlays to the Folium map builder.
+- [x] Wire GPX/KML marker imports through the GUI marker tab and analysis project.
+- [x] Allow `karstlab analyze` to accept multiple DEM paths.
+- [x] Add Phase 5 regression tests for pipeline, map builder, GUI marker imports, and CLI multi-DEM parsing.
+- [x] Defer distance measurement and elevation profile to Phase 7 or later.
 
 ## TODO Queue
 
-1. Ask Claude Code to verify the Phase 4 leftover/risk fixes.
-2. Start Phase 5 ARIS core parity integration if review clears.
-3. Keep one manual desktop click-through on the Phase 9 packaging checklist.
+1. Ask Claude Code to review Phase 5 ARIS core parity before Phase 6.
+2. Address any Phase 5 review blockers.
+3. Start Phase 6 project/settings/profile integration if review clears.
+4. Keep one manual desktop click-through on the Phase 9 packaging checklist.
 
 ## Blockers
 
@@ -104,6 +113,7 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28: v1.0.0 will be delivered through staged gates from v0.1.0 to v1.0.0.
 - 2026-05-28: Phase 2 hydrology uses `BreachDepressionsLeastCost` as the default DEM preconditioning command because it matches the architecture decision and succeeds on the synthetic DEM where `FillDepressions` panics.
 - 2026-05-29: Doline detection uses a separate `FillDepressions` raster for fill-subtract depth while hydrology keeps `BreachDepressionsLeastCost` for flow products.
+- 2026-05-29: Distance measurement, elevation profiles, and live GUI layer show/hide/opacity wiring are deferred to Phase 7 or later; Phase 5 focuses on core ARIS analysis parity and generated map layers.
 
 ## Checkpoints
 
@@ -133,7 +143,8 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-29T15:40:00+02:00 | Phase 4 minimal GUI shell | Added PySide6 `MainWindow`, map/sidebar splitter, Tools/Results/Layers/Markers/Export tabs, DEM path selection, Analyze button, `QThread` analysis worker, QWebEngine map view with QTextBrowser fallback, Top 25 results table rendering, and headless GUI smoke tests | Validation: `make PYTHON=.venv/bin/python test` pass (141 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `QT_QPA_PLATFORM=offscreen .venv/bin/python -c "from karstlab.presentation.app import MainWindow; from PySide6.QtWidgets import QApplication; app=QApplication.instance() or QApplication([]); window=MainWindow(); print(window.windowTitle()); print(window.sidebar.count()); window.close()"` pass, prints `KarstLab 0.1.0` and `5`.
 - 2026-05-29T16:05:00+02:00 | Phase 4 review fixes | Added close guards for running analysis, cooperative cancel request, traceback logging with log-file path in failure dialogs, fuller dark-theme QSS, project output folder selection, export button handlers, map-missing fallback, progress value updates from callback messages, and regression tests for close/error-log behavior | Validation: `make PYTHON=.venv/bin/python test` pass (143 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; GUI import smoke with `QT_QPA_PLATFORM=offscreen` pass, prints `KarstLab 0.1.0` and `5`.
 - 2026-05-29T16:35:00+02:00 | Phase 4 leftover/risk fixes | Hardened percent parsing for malformed callback messages, added QSS hover/title polish, made layer controls persist visible/opacity state, wired marker GPX/KML import buttons to selected files, and ran a native macOS window show/close smoke without offscreen mode | Validation: `make PYTHON=.venv/bin/python test` pass (147 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; native `.venv/bin/python -c` GUI smoke pass, prints `KarstLab 0.1.0` and `5`.
+- 2026-05-29T17:20:00+02:00 | Phase 5 ARIS core parity integration | Wired multi-tile VRT assembly into the headless pipeline, added terrain derivative rasters, added hillshade/streams/contours/imported marker Folium layers, wired GUI GPX/KML imports through project marker paths, allowed CLI analyze to accept multiple DEMs, and fixed VRT-to-GeoTIFF block metadata export | Validation: `make PYTHON=.venv/bin/python test` pass (158 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; single-tile CLI smoke wrote `hillshade.tif`, `slope.tif`, `curvature.tif` and map layer HTML; two-tile CLI smoke wrote `assembled_dem.vrt`, `assembled_dem.tif`, terrain rasters, and map layer HTML; GUI offscreen smoke pass, prints `KarstLab 0.1.0` and `5` with a Qt offscreen font-alias warning.
 
 ## Next Action
 
-Ask Claude Code to verify the Phase 4 leftover/risk fixes before Phase 5.
+Ask Claude Code to review Phase 5 ARIS core parity before Phase 6.

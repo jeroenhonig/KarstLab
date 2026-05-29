@@ -106,6 +106,9 @@ def assemble_geotiff(vrt_path: Path, output_path: Path) -> Path:
     with rasterio.open(vrt_path) as source:
         profile = source.profile.copy()
         profile.update(driver="GTiff")
+        profile.pop("blockxsize", None)
+        profile.pop("blockysize", None)
+        profile.pop("tiled", None)
         with rasterio.open(output_path, "w", **profile) as destination:
             for band in range(1, source.count + 1):
                 destination.write(source.read(band), band)

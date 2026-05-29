@@ -17,6 +17,9 @@ STATISTICS_FILENAME = "statistics.json"
 MAP_FILENAME = "index.html"
 REPORT_FILENAME = "report.html"
 ASSEMBLED_DEM_FILENAME = "assembled_dem.tif"
+HILLSHADE_FILENAME = "hillshade.tif"
+SLOPE_FILENAME = "slope.tif"
+CURVATURE_FILENAME = "curvature.tif"
 
 PROJECT_DIRECTORIES = (
     "input",
@@ -38,6 +41,9 @@ CANONICAL_FILENAMES = {
     "interactive_map": MAP_FILENAME,
     "report": REPORT_FILENAME,
     "assembled_dem": ASSEMBLED_DEM_FILENAME,
+    "hillshade": HILLSHADE_FILENAME,
+    "slope": SLOPE_FILENAME,
+    "curvature": CURVATURE_FILENAME,
     "top_depressions_gpx": "Top_Depressions_{slug}.gpx",
     "dolines_geojson": "dolines_{slug}.geojson",
     "dolines_kml": "dolines_{slug}.kml",
@@ -92,6 +98,9 @@ def canonical_output_paths(project: ProjectFile) -> dict[str, Path]:
         "interactive_map": project.map_dir / MAP_FILENAME,
         "report": project.export_dir / REPORT_FILENAME,
         "assembled_dem": project.input_dir / ASSEMBLED_DEM_FILENAME,
+        "hillshade": project.output_dir / "rasters" / HILLSHADE_FILENAME,
+        "slope": project.output_dir / "rasters" / SLOPE_FILENAME,
+        "curvature": project.output_dir / "rasters" / CURVATURE_FILENAME,
         "top_depressions_gpx": project.export_dir / f"Top_Depressions_{project.slug}.gpx",
         "dolines_geojson": project.export_dir / f"dolines_{project.slug}.geojson",
         "dolines_kml": project.export_dir / f"dolines_{project.slug}.kml",

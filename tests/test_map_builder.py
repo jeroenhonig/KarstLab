@@ -4,6 +4,7 @@ import pytest
 
 from karstlab.data.schemas import DepressionResult
 from karstlab.presentation.map_builder import (
+    ImageLayerSpec,
     MapLayerSpec,
     build_top_depressions_map,
     render_top_depressions_map_html,
@@ -58,6 +59,19 @@ def feature_collection(name: str) -> dict[str, object]:
     }
 
 
+def point_feature_collection(name: str) -> dict[str, object]:
+    return {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {"name": name},
+                "geometry": {"type": "Point", "coordinates": [1.20, 44.10]},
+            }
+        ],
+    }
+
+
 def test_render_top_depressions_map_html_contains_ranked_markers_and_footprints() -> None:
     html = render_top_depressions_map_html(
         [
@@ -100,6 +114,64 @@ def test_render_top_depressions_map_html_adds_optional_contour_and_vector_layers
     assert "fault-a" in html
     assert "#2563eb" in html
     assert "#dc2626" in html
+
+
+def test_render_top_depressions_map_html_adds_phase5_optional_layers() -> None:
+    html = render_top_depressions_map_html(
+        [depression("doline-alpha", rank=1, lat=44.10, lon=1.20)],
+        hillshade_layers=[
+            ImageLayerSpec(
+                name="Synthetic hillshade",
+                image=(
+                    "data:image/png;base64,"
+                    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+                    "AAAADUlEQVR42mP8z8BQDwAFgwJ/lH9P4wAAAABJRU5ErkJggg=="
+                ),
+                bounds=[[44.09, 1.19], [44.11, 1.21]],
+            )
+        ],
+        contour_layers=[
+            MapLayerSpec(
+                name="Phase 5 contours",
+                data=feature_collection("contour-250m"),
+            )
+        ],
+        stream_layers=[
+            MapLayerSpec(
+                name="Phase 5 streams",
+                data=feature_collection("stream-a"),
+                style={"color": "#0284c7", "weight": 2},
+            )
+        ],
+        imported_marker_layers=[
+            MapLayerSpec(
+                name="Imported survey markers",
+                data=point_feature_collection("marker-a"),
+                style={"color": "#7c3aed"},
+            )
+        ],
+    )
+
+    assert "Hillshade: Synthetic hillshade" in html
+    assert "Contours: Phase 5 contours" in html
+    assert "Streams: Phase 5 streams" in html
+    assert "Imported markers: Imported survey markers" in html
+    assert "contour-250m" in html
+    assert "stream-a" in html
+    assert "marker-a" in html
+    assert "Top 25 depression markers" in html
+    assert "#1 doline-alpha" in html
+
+
+def test_render_top_depressions_map_html_accepts_direct_imported_marker_geojson() -> None:
+    html = render_top_depressions_map_html(
+        [depression("doline-alpha", rank=1, lat=44.10, lon=1.20)],
+        imported_markers=point_feature_collection("marker-a"),
+    )
+
+    assert "Imported markers: Imported markers" in html
+    assert "marker-a" in html
+    assert "Top 25 depression markers" in html
 
 
 def test_build_top_depressions_map_limits_results_to_25() -> None:
