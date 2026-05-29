@@ -21,13 +21,14 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 
 ## Current Phase
 
-- Phase: Phase 2 - WhiteboxTools Hydrology
-- Objective: Build the external WhiteboxTools adapter and first hydrology orchestration wrapper for DEM breach/fill, D8 pointer, flow accumulation, and stream extraction.
+- Phase: Phase 3 - Dolines, Ranking & Contours
+- Objective: Detect depressions from fill-subtract rasters, rank top depressions, and extract contour vectors.
 - Exit criteria:
-  - WhiteboxTools adapter detects executable and version.
-  - Hydrology wrapper produces filled DEM, D8 pointer, flow accumulation, and stream rasters.
-  - Unit tests cover adapter command forwarding and error handling.
-  - Local smoke proves the active WhiteboxTools binary can process the synthetic DEM.
+  - Doline detection finds known synthetic depressions.
+  - Depth and area filtering work with configured thresholds.
+  - Quality flags cover edge proximity, NoData adjacency, depth confidence, shape regularity, and nested placeholders.
+  - Ranking returns deterministic Top 25 results with sequential rank IDs.
+  - Contour extraction returns valid GeoDataFrame LineStrings.
 
 ## Phase Checklist
 
@@ -61,13 +62,15 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - [x] Add scientific DEM validator.
 - [x] Add terrain helpers.
 - [x] Address DEM validator and terrain review blocker.
+- [x] Add fill-subtract doline detector.
+- [x] Add depression ranking helpers.
+- [x] Add contour extraction helpers.
 
 ## TODO Queue
 
-1. Start Phase 3 doline detection and ranking with parallel file ownership.
-2. Ask Claude Code to review Phase 3 slices after integration.
-3. Address Claude Code findings on doline detection/ranking/contours.
-4. Defer `contours_to_vector()` until contour generation exists in Phase 3/4.
+1. Ask Claude Code to review Phase 3 doline detection, ranking, and contours.
+2. Address Claude Code findings on doline detection/ranking/contours.
+3. Start Phase 4 exporter, provenance, and statistics after Phase 3 review is clear.
 
 ## Blockers
 
@@ -105,7 +108,8 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-29T09:41:00+02:00 | Phase 2 adapter review fixes | Added callback parameters and forwarding across Whitebox adapter and hydrology wrapper methods, introduced a business-layer `HydrologyBackend` protocol, and removed the business layer's concrete dependency on infrastructure | Validation: `make PYTHON=.venv/bin/python test` pass (72 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 - 2026-05-29T09:51:00+02:00 | Phase 2 parallel validator and terrain | Parallel agent session added the scientific DEM validator and terrain helpers for hillshade, slope, and curvature, with business-layer exports | Validation: `make PYTHON=.venv/bin/python test` pass (90 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 - 2026-05-29T10:09:00+02:00 | Phase 2 validator and terrain review fixes | Fixed NaN NoData masking in DEM validation, added minimum 2x2 terrain-array guard, exported `CellSize`, and expanded validator/terrain tests for NaN NoData, multi-band rasters, rectangular cell sizes, and negative tuple cell size | Validation: `make PYTHON=.venv/bin/python test` pass (94 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
+- 2026-05-29T10:13:00+02:00 | Phase 3 parallel dolines/ranking/contours | Parallel agent session added fill-subtract doline detection, deterministic depression ranking, and contour extraction as GeoDataFrame LineStrings | Validation: `make PYTHON=.venv/bin/python test` pass (110 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 
 ## Next Action
 
-Start Phase 3 doline detection and ranking with parallel file ownership.
+Ask Claude Code to review Phase 3 doline detection, ranking, and contours.
