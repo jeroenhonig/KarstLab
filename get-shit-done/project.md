@@ -21,14 +21,13 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 
 ## Current Phase
 
-- Phase: Phase 3 - Dolines, Ranking & Contours
-- Objective: Detect depressions from fill-subtract rasters, rank top depressions, and extract contour vectors.
+- Phase: Phase 4 - Minimal GUI review gate
+- Objective: Verify the first PySide6 workflow that selects a DEM, runs the validated headless pipeline, and displays map/results.
 - Exit criteria:
-  - Doline detection finds known synthetic depressions.
-  - Depth and area filtering work with configured thresholds.
-  - Quality flags cover edge proximity, NoData adjacency, depth confidence, shape regularity, and nested placeholders.
-  - Ranking returns deterministic Top 25 results with sequential rank IDs.
-  - Contour extraction returns valid GeoDataFrame LineStrings.
+  - User can select DEM, run analysis, see map and Top 25 results.
+  - Pipeline failure shows actionable error and log location.
+  - GUI remains responsive during analysis.
+  - Claude Code review clears Phase 4 before Phase 5 starts.
 
 ## Phase Checklist
 
@@ -66,18 +65,36 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - [x] Add depression ranking helpers.
 - [x] Add contour extraction helpers.
 - [x] Address Phase 3 review findings.
+- [x] Add headless `karstlab analyze` command.
+- [x] Add statistics/provenance JSON export.
+- [x] Add Top 25 GeoJSON/KML/GPX exports.
+- [x] Add contour GeoJSON/KML exports.
+- [x] Add Folium Top 25 map rendering.
+- [x] Add HTML report generation with embedded Folium map iframe.
+- [x] Integrate exports, map, and report into the headless pipeline.
+- [x] Run Claude-style review on headless pipeline/export/map/report diff.
+- [x] Run real WhiteboxTools CLI smoke on synthetic DEM.
+- [x] Add PySide6 `MainWindow` shell.
+- [x] Add map-centric splitter layout with sidebar.
+- [x] Add Tools, Results, Layers, Markers, and Export tabs.
+- [x] Add DEM picker and Analyze button.
+- [x] Add `AnalysisWorker` running the headless pipeline on `QThread`.
+- [x] Add `MapView` with QWebEngineView and QTextBrowser fallback.
+- [x] Add Top 25 results table rendering.
+- [x] Add headless GUI smoke tests.
+- [x] Address Phase 4 review blockers and minor findings.
 
 ## TODO Queue
 
-1. Ask Claude Code to verify Phase 3 review fixes.
-2. Start Phase 4 exporter, provenance, and statistics after Phase 3 fixes are clear.
-3. Continue parallel development with isolated file ownership for Phase 4.
+1. Ask Claude Code to verify the Phase 4 leftover/risk fixes.
+2. Start Phase 5 ARIS core parity integration if review clears.
+3. Keep one manual desktop click-through on the Phase 9 packaging checklist.
 
 ## Blockers
 
 - Windows packaging cannot be fully validated from the current macOS/Linux-like local environment unless a Windows runner or machine is provided.
 - The default shell `python3` is Python 3.14. Use `.venv/bin/python` or activate the Python 3.12 virtual environment for development commands.
-- WhiteboxTools `FillDepressions` panicked on the synthetic DEM with NoData during manual smoke. `BreachDepressionsLeastCost` works on the same DEM and remains the default fill/preconditioning path.
+- WhiteboxTools `FillDepressions` panics on the synthetic DEM when its working directory differs from the output directory. The adapter now runs that command with `output_path.parent` as the temporary work directory and restores the original work directory afterward.
 
 ## Decisions
 
@@ -86,6 +103,7 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-28: Sequential handoffs are required for shared files and risky changes; parallel work is allowed only with explicit file ownership.
 - 2026-05-28: v1.0.0 will be delivered through staged gates from v0.1.0 to v1.0.0.
 - 2026-05-28: Phase 2 hydrology uses `BreachDepressionsLeastCost` as the default DEM preconditioning command because it matches the architecture decision and succeeds on the synthetic DEM where `FillDepressions` panics.
+- 2026-05-29: Doline detection uses a separate `FillDepressions` raster for fill-subtract depth while hydrology keeps `BreachDepressionsLeastCost` for flow products.
 
 ## Checkpoints
 
@@ -111,7 +129,11 @@ Deliver KarstLab v1.0.0 as a cross-platform desktop GIS application that reprodu
 - 2026-05-29T10:09:00+02:00 | Phase 2 validator and terrain review fixes | Fixed NaN NoData masking in DEM validation, added minimum 2x2 terrain-array guard, exported `CellSize`, and expanded validator/terrain tests for NaN NoData, multi-band rasters, rectangular cell sizes, and negative tuple cell size | Validation: `make PYTHON=.venv/bin/python test` pass (94 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 - 2026-05-29T10:13:00+02:00 | Phase 3 parallel dolines/ranking/contours | Parallel agent session added fill-subtract doline detection, deterministic depression ranking, and contour extraction as GeoDataFrame LineStrings | Validation: `make PYTHON=.venv/bin/python test` pass (110 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
 - 2026-05-29T13:37:00+02:00 | Phase 3 review fixes | Exported doline detector symbols, standardized doline centroids and geometries to WGS84, added required-CRS validation, cached CRS transformers per detection run, switched pixel area to affine determinant, documented depth confidence thresholds, and filled Phase 3 test gaps | Validation: `make PYTHON=.venv/bin/python test` pass (117 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `make PYTHON=.venv/bin/python check-schemas` pass.
+- 2026-05-29T15:10:00+02:00 | Headless analyze/export/map/report integration | Added `karstlab analyze`, headless pipeline orchestration, statistics/provenance JSON, Top 25 GeoJSON/KML/GPX, contour GeoJSON/KML, Folium map HTML, report HTML with embedded map iframe, and Whitebox `FillDepressions` work-dir handling | Validation: `make PYTHON=.venv/bin/python test` pass (134 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `.venv/bin/python -m karstlab.cli.main analyze /private/tmp/karstlab_cli_smoke/dem.tif --project-dir /private/tmp/karstlab_cli_smoke/projects --name "Synthetic Smoke" --profile generic --overwrite` pass, detected 3 Top depressions and wrote pipeline result, statistics, map, report, GPX/KML/GeoJSON exports.
+- 2026-05-29T15:40:00+02:00 | Phase 4 minimal GUI shell | Added PySide6 `MainWindow`, map/sidebar splitter, Tools/Results/Layers/Markers/Export tabs, DEM path selection, Analyze button, `QThread` analysis worker, QWebEngine map view with QTextBrowser fallback, Top 25 results table rendering, and headless GUI smoke tests | Validation: `make PYTHON=.venv/bin/python test` pass (141 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; `QT_QPA_PLATFORM=offscreen .venv/bin/python -c "from karstlab.presentation.app import MainWindow; from PySide6.QtWidgets import QApplication; app=QApplication.instance() or QApplication([]); window=MainWindow(); print(window.windowTitle()); print(window.sidebar.count()); window.close()"` pass, prints `KarstLab 0.1.0` and `5`.
+- 2026-05-29T16:05:00+02:00 | Phase 4 review fixes | Added close guards for running analysis, cooperative cancel request, traceback logging with log-file path in failure dialogs, fuller dark-theme QSS, project output folder selection, export button handlers, map-missing fallback, progress value updates from callback messages, and regression tests for close/error-log behavior | Validation: `make PYTHON=.venv/bin/python test` pass (143 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; GUI import smoke with `QT_QPA_PLATFORM=offscreen` pass, prints `KarstLab 0.1.0` and `5`.
+- 2026-05-29T16:35:00+02:00 | Phase 4 leftover/risk fixes | Hardened percent parsing for malformed callback messages, added QSS hover/title polish, made layer controls persist visible/opacity state, wired marker GPX/KML import buttons to selected files, and ran a native macOS window show/close smoke without offscreen mode | Validation: `make PYTHON=.venv/bin/python test` pass (147 tests, one expected rasterio NotGeoreferencedWarning in missing-CRS fixture); `make PYTHON=.venv/bin/python lint` pass; `make PYTHON=.venv/bin/python typecheck` pass; native `.venv/bin/python -c` GUI smoke pass, prints `KarstLab 0.1.0` and `5`.
 
 ## Next Action
 
-Ask Claude Code to verify Phase 3 review fixes.
+Ask Claude Code to verify the Phase 4 leftover/risk fixes before Phase 5.
