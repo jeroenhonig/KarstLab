@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
-from PySide6.QtGui import QCloseEvent, QDesktopServices
+from PySide6.QtGui import QAction, QCloseEvent, QDesktopServices
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -42,8 +43,14 @@ from PySide6.QtWidgets import (
 
 from karstlab.business.pipeline import run_headless_analysis
 from karstlab.data.land_profiles import list_land_profile_ids, load_land_profile
-from karstlab.data.project_io import canonical_output_paths, create_project, save_project
+from karstlab.data.project_io import (
+    canonical_output_paths,
+    create_project,
+    load_project,
+    save_project,
+)
 from karstlab.data.schemas import AnalysisParams, DepressionResult, PipelineResult, ProjectFile
+from karstlab.data.user_settings import add_recent_project, load_user_settings, save_user_settings
 from karstlab.data.vector_io import read_gpx_waypoints, read_kml_points
 from karstlab.infrastructure.whitebox_adapter import WhiteboxAdapter
 from karstlab.version import __version__
@@ -204,6 +211,7 @@ class MainWindow(QMainWindow):
         self._analysis_worker: AnalysisWorker | None = None
         self._current_result: PipelineResult | None = None
         self._current_project: ProjectFile | None = None
+        self._user_settings = load_user_settings()
 
         self.setWindowTitle(f"KarstLab {__version__}")
         self.resize(1280, 820)
@@ -218,7 +226,8 @@ class MainWindow(QMainWindow):
         self.dem_path_edit = QLineEdit()
         self.dem_path_edit.setReadOnly(True)
         self.profile_combo = QComboBox()
-        self.project_dir_edit = QLineEdit(str(_default_project_base_dir()))
+        default_project_dir = self._user_settings.last_project_dir or _default_project_base_dir()
+        self.project_dir_edit = QLineEdit(str(default_project_dir))
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
@@ -298,6 +307,7 @@ class MainWindow(QMainWindow):
             self.export_paths = {}
 
     def _build_layout(self) -> None:
+        self._build_menu_bar()
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self._map_panel())
         splitter.addWidget(self._sidebar_panel())
@@ -305,6 +315,28 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(1, 3)
         self.setCentralWidget(splitter)
         self.setStatusBar(QStatusBar())
+
+    def _build_menu_bar(self) -> None:
+        file_menu: QMenu = self.menuBar().addMenu("File")
+
+        new_action = QAction("New project", self)
+        new_action.setShortcut("Ctrl+N")
+        new_action.triggered.connect(self._new_project)
+        file_menu.addAction(new_action)
+
+        open_action = QAction("Open project…", self)
+        open_action.setShortcut("Ctrl+O")
+        open_action.triggered.connect(self._open_project)
+        file_menu.addAction(open_action)
+
+        save_action = QAction("Save project", self)
+        save_action.setShortcut("Ctrl+S")
+        save_action.triggered.connect(self._save_project)
+        file_menu.addAction(save_action)
+
+        file_menu.addSeparator()
+        self._recent_menu: QMenu = file_menu.addMenu("Open recent")
+        self._refresh_recent_menu()
 
     def _map_panel(self) -> QWidget:
         panel = QWidget()
@@ -458,6 +490,104 @@ class MainWindow(QMainWindow):
         if path:
             self.set_dem_path(Path(path))
 
+    def _new_project(self) -> None:
+        self.dem_path_edit.clear()
+        default_dir = self._user_settings.last_project_dir or _default_project_base_dir()
+        self.project_dir_edit.setText(str(default_dir))
+        self.profile_combo.setCurrentIndex(self.profile_combo.findText("generic"))
+        self.map_view.set_empty_state()
+        self.results_table.setRowCount(0)
+        self.summary_label.setText("No analysis results")
+        self.marker_paths.clear()
+        self._refresh_marker_list()
+        self._current_project = None
+        self._current_result = None
+        self.export_paths = {}
+        for button in self.export_buttons:
+            button.setEnabled(False)
+        self.statusBar().showMessage("New project")
+
+    def _open_project(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open KarstLab project",
+            str(self._user_settings.last_project_dir or Path.home()),
+            "KarstLab project (*.karstlab);;All files (*)",
+        )
+        if not path:
+            return
+        self._load_project_from_path(Path(path))
+
+    def _load_project_from_path(self, project_file: Path) -> None:
+        try:
+            project = load_project(project_file)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Open project failed", str(exc))
+            return
+
+        self._current_project = project
+        self.project_dir_edit.setText(str(project.project_dir.parent))
+
+        if project.dem_paths:
+            self.dem_path_edit.setText(str(project.dem_paths[0]))
+
+        profile_index = self.profile_combo.findText(project.land_profile)
+        if profile_index >= 0:
+            self.profile_combo.setCurrentIndex(profile_index)
+
+        self.marker_paths = list(project.marker_paths)
+        self._refresh_marker_list()
+
+        if project.last_pipeline_result and project.last_pipeline_result.exists():
+            try:
+                import json as _json
+
+                from karstlab.data.schemas import PipelineResult as _PR
+
+                payload = _json.loads(
+                    project.last_pipeline_result.read_text(encoding="utf-8")
+                )
+                result = _PR.model_validate(payload)
+                self.display_results(result, project)
+                self.sidebar.setCurrentIndex(1)
+            except Exception:  # noqa: BLE001 - non-fatal, just show empty state
+                self.map_view.set_empty_state()
+
+        self._user_settings = save_user_settings(
+            add_recent_project(
+                self._user_settings.model_copy(
+                    update={"last_project_dir": project.project_dir.parent}
+                ),
+                project_file,
+            )
+        )
+        self._refresh_recent_menu()
+        self.statusBar().showMessage(f"Opened: {project.name}")
+
+    def _save_project(self) -> None:
+        if self._current_project is None:
+            self.statusBar().showMessage("No project to save")
+            return
+        try:
+            self._current_project = save_project(self._current_project)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Save project failed", str(exc))
+            return
+        self.statusBar().showMessage(f"Saved: {self._current_project.name}")
+
+    def _refresh_recent_menu(self) -> None:
+        self._recent_menu.clear()
+        for recent_path in self._user_settings.recent_projects:
+            action = QAction(str(recent_path), self)
+            action.triggered.connect(
+                lambda _checked=False, p=recent_path: self._load_project_from_path(p)
+            )
+            self._recent_menu.addAction(action)
+        if not self._user_settings.recent_projects:
+            placeholder = QAction("No recent projects", self)
+            placeholder.setEnabled(False)
+            self._recent_menu.addAction(placeholder)
+
     def _browse_project_dir(self) -> None:
         path = QFileDialog.getExistingDirectory(
             self,
@@ -466,6 +596,9 @@ class MainWindow(QMainWindow):
         )
         if path:
             self.project_dir_edit.setText(path)
+            self._user_settings = save_user_settings(
+                self._user_settings.model_copy(update={"last_project_dir": Path(path)})
+            )
 
     def _start_analysis(self) -> None:
         dem_path = self.selected_dem_path()
@@ -602,6 +735,18 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Analysis complete")
         self.display_results(result, project)  # type: ignore[arg-type]
         self.sidebar.setCurrentIndex(1)
+        if isinstance(project, ProjectFile):
+            project_file = project.project_dir / "project.karstlab"
+            if project_file.exists():
+                self._user_settings = save_user_settings(
+                    add_recent_project(
+                        self._user_settings.model_copy(
+                            update={"last_project_dir": project.project_dir.parent}
+                        ),
+                        project_file,
+                    )
+                )
+                self._refresh_recent_menu()
 
     def _on_analysis_failed(self, message: str) -> None:
         self.progress.setRange(0, 100)
