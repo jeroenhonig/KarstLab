@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -204,6 +205,49 @@ def test_fill_depressions_uses_output_parent_work_dir_and_restores_original(tmp_
 
     assert tools.call_work_dirs == [str(output.parent)]
     assert tools.work_dir == str(tmp_path / "original-work")
+
+
+def test_fill_depressions_recovers_when_whitebox_uses_input_stem_as_output(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Whitebox sometimes ignores --output and writes <input_stem>.tif in work_dir.
+
+    The adapter must detect that mismatch and rename to the requested output path.
+    """
+
+    class StemNamingWhiteboxTools(FakeWhiteboxTools):
+        """Simulates Whitebox deriving the output name from the input DEM stem."""
+
+        def fill_depressions(  # type: ignore[override]
+            self,
+            dem: str,
+            output: str,
+            fix_flats: bool = True,
+            flat_increment: float | None = None,
+            max_depth: float | None = None,
+            callback: Callable[[str], None] | None = None,
+        ) -> int | None:
+            self.calls.append(("fill_depressions", (dem, output), {}))
+            self.call_work_dirs.append(self.work_dir)
+            # Write to <work_dir>/<input_stem>.tif, ignoring the output arg
+            stem_output = Path(self.work_dir) / (Path(dem).stem + ".tif")
+            stem_output.parent.mkdir(parents=True, exist_ok=True)
+            stem_output.write_text("fill_depressions", encoding="utf-8")
+            return 0
+
+    dem = tmp_path / "source" / "survey.tif"
+    dem.parent.mkdir()
+    dem.write_text("fake dem", encoding="utf-8")
+
+    output = tmp_path / "filled" / "dem_detection_filled.tif"
+    tools = StemNamingWhiteboxTools()
+    tools.work_dir = str(tmp_path / "original-work")
+    adapter = WhiteboxAdapter(tools=tools)
+
+    result = adapter.fill_depressions(dem, output)
+
+    assert result == output
+    assert output.exists()
+    # stem candidate must have been consumed (renamed away)
+    assert not (output.parent / "survey.tif").exists()
 
 
 def test_adapter_raises_on_nonzero_exit_code(tmp_path) -> None:  # type: ignore[no-untyped-def]
