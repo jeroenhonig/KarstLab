@@ -44,6 +44,7 @@ from karstlab.business.pipeline import run_headless_analysis
 from karstlab.data.land_profiles import list_land_profile_ids, load_land_profile
 from karstlab.data.project_io import canonical_output_paths, create_project, save_project
 from karstlab.data.schemas import AnalysisParams, DepressionResult, PipelineResult, ProjectFile
+from karstlab.data.vector_io import read_gpx_waypoints, read_kml_points
 from karstlab.infrastructure.whitebox_adapter import WhiteboxAdapter
 from karstlab.version import __version__
 
@@ -69,6 +70,7 @@ class AnalysisWorker(QObject):
         project_name: str,
         profile_id: str,
         analysis_params: AnalysisParams,
+        marker_paths: Sequence[Path] = (),
         runner: AnalysisRunner | None = None,
     ) -> None:
         super().__init__()
@@ -77,6 +79,7 @@ class AnalysisWorker(QObject):
         self._project_name = project_name
         self._profile_id = profile_id
         self._analysis_params = analysis_params
+        self._marker_paths = list(marker_paths)
         self._runner = runner
 
     def run(self) -> None:
@@ -91,7 +94,14 @@ class AnalysisWorker(QObject):
                 analysis_params=self._analysis_params,
                 overwrite=True,
             )
-            project = save_project(project.model_copy(update={"dem_paths": [self._dem_path]}))
+            project = save_project(
+                project.model_copy(
+                    update={
+                        "dem_paths": [self._dem_path],
+                        "marker_paths": self._marker_paths,
+                    }
+                )
+            )
             runner = self._runner or _default_analysis_runner
             result = runner(project, self._emit_progress)
             project = save_project(
@@ -155,8 +165,8 @@ class MapView(QWidget):
         self.set_html(
             """
             <html>
-              <body style="margin:0;background:#1a1f2e;color:#e8eaf0;
-                           font-family:-apple-system,Segoe UI,sans-serif;">
+                <body style="margin:0;background:#1a1f2e;color:#e8eaf0;
+                           font-family:Arial;">
                 <div style="height:100vh;display:flex;align-items:center;
                             justify-content:center;text-align:center;">
                   <div>
@@ -480,6 +490,7 @@ class MainWindow(QMainWindow):
             project_name=dem_path.stem,
             profile_id=self.profile_combo.currentText(),
             analysis_params=load_land_profile(self.profile_combo.currentText()).analysis_defaults,
+            marker_paths=self.marker_paths,
             runner=self._analysis_runner,
         )
         thread = QThread(self)
@@ -534,9 +545,47 @@ class MainWindow(QMainWindow):
         if not path:
             return
         marker_path = Path(path)
-        self.marker_paths.append(marker_path)
-        self.marker_list.addItem(str(marker_path))
-        self.statusBar().showMessage(f"Imported marker file: {marker_path.name}")
+        try:
+            markers = _read_marker_points(label, marker_path)
+        except Exception as exc:  # noqa: BLE001 - parse errors need to reach the user.
+            QMessageBox.warning(self, f"Import {label} failed", str(exc))
+            return
+
+        if len(markers) == 0:
+            QMessageBox.warning(
+                self,
+                f"No markers in {label}",
+                f"{marker_path.name} contains no readable waypoints or placemarks.",
+            )
+            return
+
+        if marker_path not in self.marker_paths:
+            self.marker_paths.append(marker_path)
+        self._refresh_marker_list()
+        self._persist_marker_paths()
+        count = len(markers)
+        suffix = "marker" if count == 1 else "markers"
+        self.statusBar().showMessage(f"Imported {count} {suffix}: {marker_path.name}")
+
+    def _refresh_marker_list(self) -> None:
+        self.marker_list.clear()
+        for marker_path in self.marker_paths:
+            if not marker_path.exists():
+                self.marker_list.addItem(f"[Missing] {marker_path.name}")
+                continue
+            try:
+                markers = _read_marker_points(marker_path.suffix.lstrip("."), marker_path)
+            except Exception:  # noqa: BLE001 - keep stale/broken paths visible in state.
+                self.marker_list.addItem(f"[Error] {marker_path.name}")
+            else:
+                self.marker_list.addItem(_marker_list_label(marker_path, markers))
+
+    def _persist_marker_paths(self) -> None:
+        if self._current_project is None:
+            return
+        self._current_project = save_project(
+            self._current_project.model_copy(update={"marker_paths": self.marker_paths})
+        )
 
     def _on_progress(self, message: str) -> None:
         if message:
@@ -599,11 +648,31 @@ def _default_analysis_runner(
     project: ProjectFile,
     callback: Callable[[str], None] | None,
 ) -> PipelineResult:
-    return run_headless_analysis(
+    result = run_headless_analysis(
         project,
         hydrology_backend=WhiteboxAdapter.create(work_dir=project.output_dir / "rasters"),
         callback=callback,
     )
+    return result
+
+
+def _read_marker_points(label: str, path: Path) -> Any:
+    normalized_label = label.upper()
+    if normalized_label == "GPX":
+        return read_gpx_waypoints(path)
+    if normalized_label == "KML":
+        return read_kml_points(path)
+    raise ValueError(f"Unsupported marker format: {label}")
+
+
+def _marker_list_label(path: Path, markers: Any) -> str:
+    count = len(markers)
+    suffix = "marker" if count == 1 else "markers"
+    names: list[str] = []
+    if "name" in markers:
+        names = [str(name) for name in markers["name"].dropna().head(3).to_list()]
+    name_preview = f": {', '.join(names)}" if names else ""
+    return f"{path.name} ({count} {suffix}){name_preview}"
 
 
 def _default_project_base_dir() -> Path:
@@ -710,7 +779,7 @@ def _stylesheet() -> str:
     return """
     QMainWindow, QWidget {
         background: #1a1f2e; color: #e8eaf0;
-        font-family: Arial, sans-serif; font-size: 13px;
+        font-family: Arial; font-size: 13px;
     }
     QTabWidget::pane, QGroupBox, QFrame#placeholder {
         border: 1px solid #3a4058; border-radius: 6px;
