@@ -62,6 +62,7 @@ def build_top_depressions_map(
     imported_markers: GeoJsonLike | None = None,
     max_results: int = 25,
     tiles: str = "OpenStreetMap",
+    tile_attribution: str | None = None,
     zoom_start: int = 13,
 ) -> folium.Map:
     """Build an interactive Folium map for the top ranked depression results."""
@@ -75,7 +76,7 @@ def build_top_depressions_map(
         folium_map = folium.Map(location=location, zoom_start=zoom_start, tiles=None)
         folium.TileLayer(
             tiles=tiles,
-            attr="&copy; KarstLab contributors",
+            attr=tile_attribution or "",
             name="Base map",
         ).add_to(folium_map)
     else:
@@ -109,6 +110,7 @@ def render_top_depressions_map_html(
     imported_markers: GeoJsonLike | None = None,
     max_results: int = 25,
     tiles: str = "OpenStreetMap",
+    tile_attribution: str | None = None,
     zoom_start: int = 13,
 ) -> str:
     """Render the top depression Folium map to a standalone HTML document."""
@@ -125,6 +127,7 @@ def render_top_depressions_map_html(
             imported_markers=imported_markers,
             max_results=max_results,
             tiles=tiles,
+            tile_attribution=tile_attribution,
             zoom_start=zoom_start,
         )
         .get_root()

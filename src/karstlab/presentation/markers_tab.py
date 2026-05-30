@@ -270,6 +270,12 @@ class MarkersTab(QWidget):
         if self._poi_fetch_button is not None:
             self._poi_fetch_button.setEnabled(True)
         if not records:
+            if source == "spelebase":
+                self.status_updated.emit(
+                    self.tr("Spélébase is not available yet; no public API is published.")
+                )
+            else:
+                self.status_updated.emit(self.tr("No POI records found."))
             return
         frame = poi_records_to_geodataframe(records)
         import tempfile

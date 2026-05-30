@@ -6,7 +6,6 @@ import traceback
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 from PySide6.QtCore import QObject, QThread, Signal
 

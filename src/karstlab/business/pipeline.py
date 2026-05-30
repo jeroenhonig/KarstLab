@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import heapq
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -108,9 +109,14 @@ def run_headless_analysis(
     )
 
     fill_started = datetime.now(UTC)
-    detection_filled_dem = hydrology_backend.fill_depressions(
-        dem_path,
-        project.output_dir / "rasters" / "depression_fill" / "dem_detection_filled.tif",
+    detection_filled_dem = _fill_depressions_for_detection(
+        original_dem,
+        dem_path=dem_path,
+        output_path=project.output_dir
+        / "rasters"
+        / "depression_fill"
+        / "dem_detection_filled.tif",
+        hydrology_backend=hydrology_backend,
         callback=callback,
     )
     steps.append(
@@ -245,7 +251,8 @@ def run_headless_analysis(
                 )
             ],
             imported_marker_layers=_imported_marker_layers(project),
-            tiles=_profile_tiles(land_profile),
+            tiles=_profile_tile_url(land_profile),
+            tile_attribution=_profile_tile_attribution(land_profile),
         ),
         encoding="utf-8",
     )
@@ -337,6 +344,78 @@ def _write_terrain_derivatives(original_dem: Any, paths: dict[str, Path]) -> dic
     }
 
 
+def _fill_depressions_for_detection(
+    original_dem: Any,
+    *,
+    dem_path: Path,
+    output_path: Path,
+    hydrology_backend: HydrologyBackend,
+    callback: Callable[[str], None] | None,
+) -> Path:
+    try:
+        return hydrology_backend.fill_depressions(
+            dem_path,
+            output_path,
+            callback=callback,
+        )
+    except (RuntimeError, OSError) as exc:
+        if callback is not None:
+            callback(f"Whitebox FillDepressions failed; using Python fallback: {exc}")
+        return _write_priority_flood_fill(original_dem, output_path)
+
+
+def _write_priority_flood_fill(original_dem: Any, output_path: Path) -> Path:
+    array = original_dem.array.astype("float64", copy=True)
+    nodata = original_dem.metadata.nodata
+    valid = np.isfinite(array)
+    if nodata is not None:
+        valid &= array != nodata
+
+    filled = array.copy()
+    visited = np.zeros(array.shape, dtype=bool)
+    heap: list[tuple[float, int, int]] = []
+    rows, cols = array.shape
+
+    def push(row: int, col: int) -> None:
+        if valid[row, col] and not visited[row, col]:
+            visited[row, col] = True
+            heapq.heappush(heap, (float(filled[row, col]), row, col))
+
+    for row in range(rows):
+        push(row, 0)
+        push(row, cols - 1)
+    for col in range(1, cols - 1):
+        push(0, col)
+        push(rows - 1, col)
+
+    neighbours = ((-1, 0), (1, 0), (0, -1), (0, 1))
+    while heap:
+        elevation, row, col = heapq.heappop(heap)
+        for drow, dcol in neighbours:
+            next_row = row + drow
+            next_col = col + dcol
+            if not (0 <= next_row < rows and 0 <= next_col < cols):
+                continue
+            if visited[next_row, next_col] or not valid[next_row, next_col]:
+                continue
+            visited[next_row, next_col] = True
+            next_elevation = max(float(array[next_row, next_col]), elevation)
+            filled[next_row, next_col] = next_elevation
+            heapq.heappush(heap, (next_elevation, next_row, next_col))
+
+    if nodata is not None:
+        filled = np.where(valid, filled, nodata)
+
+    return save_geotiff(
+        output_path,
+        filled.astype("float32"),
+        crs=original_dem.metadata.crs,
+        transform=original_dem.metadata.transform,
+        nodata=nodata,
+        dtype="float32",
+    )
+
+
 _STREAM_SIMPLIFY_TOLERANCE = 5.0
 
 
@@ -395,7 +474,7 @@ def _load_project_profile(project: ProjectFile) -> LandProfile | None:
         return None
 
 
-def _profile_tiles(profile: LandProfile | None) -> str:
+def _profile_tile_url(profile: LandProfile | None) -> str:
     """Return a Folium tiles string from the profile's first XYZ tile layer.
 
     WMTS and WMS layers require API keys or custom setup — skip them and use
@@ -407,8 +486,23 @@ def _profile_tiles(profile: LandProfile | None) -> str:
 
     for layer in profile.map_layers.base:
         if layer.type == LayerType.TILE:
-            return str(layer.url)
+            return _folium_tile_url(str(layer.url))
     return "OpenStreetMap"
+
+
+def _folium_tile_url(url: str) -> str:
+    return url.replace("%7B", "{").replace("%7D", "}").replace("%7b", "{").replace("%7d", "}")
+
+
+def _profile_tile_attribution(profile: LandProfile | None) -> str | None:
+    if profile is None:
+        return None
+    from karstlab.data.schemas import LayerType
+
+    for layer in profile.map_layers.base:
+        if layer.type == LayerType.TILE:
+            return layer.attribution
+    return None
 
 
 def _wgs84_bounds(

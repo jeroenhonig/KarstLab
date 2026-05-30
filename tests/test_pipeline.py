@@ -105,6 +105,17 @@ class FakeHydrologyBackend:
         )
 
 
+class FailingFillHydrologyBackend(FakeHydrologyBackend):
+    def fill_depressions(
+        self,
+        dem_path: Path,
+        output_path: Path,
+        *,
+        callback: Callable[[str], None] | None = None,
+    ) -> Path:
+        raise RuntimeError("whitebox panic")
+
+
 @pytest.fixture(autouse=True)
 def _stub_pipeline_map_renderer(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
@@ -174,6 +185,31 @@ def test_run_headless_analysis_writes_pipeline_result(tmp_path: Path) -> None:
     assert messages == ["breach", "pointer", "accumulation", "streams", "fill"]
 
 
+def test_run_headless_analysis_falls_back_when_fill_depressions_fails(
+    tmp_path: Path,
+) -> None:
+    dem_path = write_synthetic_dem(tmp_path / "dem.tif")
+    project = _project_with_dems(
+        tmp_path,
+        name="Fill Fallback",
+        slug="fill-fallback",
+        dem_paths=[dem_path],
+    )
+    messages: list[str] = []
+
+    result = run_headless_analysis(
+        project,
+        hydrology_backend=FailingFillHydrologyBackend(),
+        callback=messages.append,
+    )
+
+    paths = canonical_output_paths(project)
+    assert result.status == PipelineStatus.SUCCESS
+    assert paths["pipeline_result"].exists()
+    assert (project.output_dir / "rasters" / "depression_fill").exists()
+    assert any("Python fallback" in message for message in messages)
+
+
 def test_run_headless_analysis_writes_terrain_derivative_rasters(tmp_path: Path) -> None:
     dem_path = write_synthetic_dem(tmp_path / "dem.tif")
     project = _project_with_dems(
@@ -230,6 +266,34 @@ def test_run_headless_analysis_passes_imported_markers_to_map(
     run_headless_analysis(project, hydrology_backend=FakeHydrologyBackend())
 
     assert [layer.name for layer in captured_layers] == ["markers"]
+
+
+def test_run_headless_analysis_passes_profile_tile_attribution_to_map(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dem_path = write_synthetic_dem(tmp_path / "dem.tif")
+    project = create_project(
+        base_dir=tmp_path,
+        name="Profile Tiles",
+        land_profile="fr",
+        crs_analysis="EPSG:2154",
+        slug="profile-tiles",
+    ).model_copy(update={"dem_paths": [dem_path]})
+    captured_kwargs: dict[str, Any] = {}
+
+    def render_map(_depressions: object, **kwargs: object) -> str:
+        captured_kwargs.update(kwargs)
+        return "<html><body>pipeline map</body></html>"
+
+    monkeypatch.setattr(
+        "karstlab.business.pipeline.render_top_depressions_map_html",
+        render_map,
+    )
+
+    run_headless_analysis(project, hydrology_backend=FakeHydrologyBackend())
+
+    assert captured_kwargs["tiles"] == "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    assert captured_kwargs["tile_attribution"] == "© OpenStreetMap contributors"
 
 
 def test_run_headless_analysis_assembles_multiple_dem_tiles_before_analysis(

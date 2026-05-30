@@ -174,6 +174,17 @@ def test_render_top_depressions_map_html_accepts_direct_imported_marker_geojson(
     assert "Top 25 depression markers" in html
 
 
+def test_render_top_depressions_map_html_uses_custom_tile_attribution() -> None:
+    html = render_top_depressions_map_html(
+        [depression("doline-alpha", rank=1, lat=44.10, lon=1.20)],
+        tiles="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        tile_attribution="© OpenStreetMap contributors",
+    )
+
+    assert "OpenStreetMap contributors" in html
+    assert "KarstLab contributors" not in html
+
+
 def test_build_top_depressions_map_limits_results_to_25() -> None:
     depressions = [
         depression(f"doline-{index:02d}", rank=index + 1, lat=44.0, lon=1.0) for index in range(30)

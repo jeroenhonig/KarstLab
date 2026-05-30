@@ -15,8 +15,8 @@ def _qm_path(lang: str) -> Path:
 
 def main() -> int:
     try:
-        from PySide6.QtWidgets import QApplication
         from PySide6.QtCore import QTranslator
+        from PySide6.QtWidgets import QApplication
     except ImportError as exc:
         raise SystemExit(
             "PySide6 is not installed. Install the package with the 'package' or full app "

@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: test lint typecheck check doctor schemas check-schemas translate icons package-macos package-windows package clean
+.PHONY: test lint typecheck check doctor schemas check-schemas translate icons package-macos package-macos-release package-windows package clean
 
 test:
 	$(PYTHON) -m pytest
@@ -36,6 +36,11 @@ icons:
 	$(PYTHON) packaging/create_icons.py
 
 package-macos: translate icons
+	PYINSTALLER_CONFIG_DIR=.pyinstaller $(PYTHON) -m PyInstaller packaging/karstlab_gui.spec --noconfirm
+	hdiutil create -volname KarstLab -srcfolder dist/KarstLab.app -ov -format UDZO dist/KarstLab.dmg || \
+	    echo "WARNING: hdiutil failed; macOS app bundle is available at dist/KarstLab.app"
+
+package-macos-release: translate icons
 	PYINSTALLER_CONFIG_DIR=.pyinstaller $(PYTHON) -m PyInstaller packaging/karstlab_gui.spec --noconfirm
 	hdiutil create -volname KarstLab -srcfolder dist/KarstLab.app -ov -format UDZO dist/KarstLab.dmg
 

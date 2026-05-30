@@ -2,9 +2,9 @@
 """PyInstaller spec for KarstLab macOS GUI application."""
 
 from pathlib import Path
-import os
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
-project_root = Path(SPECPATH).parent.parent
+project_root = Path(SPECPATH).parent
 src_dir = project_root / "src"
 
 # Determine PROJ data directory
@@ -13,14 +13,6 @@ try:
     proj_data = Path(pyproj.datadir.get_data_dir())
 except (ImportError, Exception):
     proj_data = None
-
-# Determine GDAL data directory (bundled with rasterio)
-try:
-    import rasterio
-    gdal_data = None
-    # GDAL data might be in rasterio installation
-except ImportError:
-    gdal_data = None
 
 # WhiteboxTools binary path (if available)
 wbt_bin = None
@@ -47,45 +39,32 @@ datas = [
 if proj_data and proj_data.exists():
     datas.append((str(proj_data), "proj"))
 
-# Add GDAL data if found
-if gdal_data and gdal_data.exists():
-    datas.append((str(gdal_data), "gdal"))
-
 # Collect binaries
 binaries = []
 if wbt_bin:
     binaries.append((str(wbt_bin), "bin"))
 
 # Hidden imports for dependencies
-hiddenimports = [
-    # Rasterio and GDAL
-    "rasterio",
-    "rasterio._base",
-    "rasterio.crs",
-    "rasterio.features",
-    "rasterio.mask",
-    "rasterio.plot",
-    # PROJ and PyProj
-    "pyproj",
-    "pyproj.exceptions",
-    # GeoPandas
-    "geopandas",
-    "shapely",
-    # PySide6
-    "PySide6.QtCore",
-    "PySide6.QtGui",
-    "PySide6.QtWidgets",
-    "PySide6.QtWebEngineWidgets",
-    "PySide6.QtSvg",
-    # NumPy and SciPy
-    "numpy",
-    "scipy",
-    # KarstLab modules
-    "karstlab.presentation.app",
-    "karstlab.presentation.widgets",
-    "karstlab.domain.models",
-    "karstlab.data.repository",
-]
+hiddenimports = (
+    collect_submodules("rasterio")
+    + collect_submodules("pyproj")
+    + [
+        # GeoPandas
+        "geopandas",
+        "shapely",
+        # PySide6
+        "PySide6.QtCore",
+        "PySide6.QtGui",
+        "PySide6.QtWidgets",
+        "PySide6.QtWebEngineWidgets",
+        "PySide6.QtSvg",
+        # NumPy and SciPy
+        "numpy",
+        "scipy",
+        # KarstLab modules
+        "karstlab.presentation.app",
+    ]
+)
 
 a = Analysis(
     [str(src_dir / "karstlab" / "presentation" / "app.py")],
