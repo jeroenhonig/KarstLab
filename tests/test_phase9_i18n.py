@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import os
-import sys
+from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
-from datetime import UTC, datetime
-from collections.abc import Iterator
 
 import pytest
 
@@ -59,7 +58,8 @@ def test_ts_file_has_expected_contexts(lang: str) -> None:
     root = tree.getroot()
     context_names = {ctx.findtext("name") for ctx in root.findall("context")}
     required = {"ToolsTab", "LayersTab", "ResultsTab", "MarkersTab", "GuidedWorkflowPanel"}
-    assert required.issubset(context_names), f"Missing contexts in {lang}.ts: {required - context_names}"
+    missing = required - context_names
+    assert required.issubset(context_names), f"Missing contexts in {lang}.ts: {missing}"
 
 
 def test_nl_ts_contains_dutch_translations() -> None:
@@ -221,6 +221,7 @@ def _make_pipeline_result() -> Any:
 
 def test_report_has_locale_parameter() -> None:
     import inspect
+
     from karstlab.presentation.report import generate_html_report
 
     sig = inspect.signature(generate_html_report)
@@ -273,7 +274,7 @@ def test_report_unknown_locale_falls_back_to_english() -> None:
 
 
 def test_settings_dialog_stores_original_language(qapp: Any) -> None:
-    from karstlab.data.schemas import UserSettings, Locale
+    from karstlab.data.schemas import Locale, UserSettings
     from karstlab.presentation.settings_dialog import SettingsDialog
 
     settings = UserSettings(language=Locale.EN)

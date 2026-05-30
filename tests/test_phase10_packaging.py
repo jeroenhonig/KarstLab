@@ -6,8 +6,6 @@ import ast
 import re
 from pathlib import Path
 
-import pytest
-
 PROJECT_ROOT = Path(__file__).parent.parent
 PACKAGING = PROJECT_ROOT / "packaging"
 

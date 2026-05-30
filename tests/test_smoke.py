@@ -7,7 +7,7 @@ from karstlab.version import __version__
 
 
 def test_version_is_setup_release() -> None:
-    assert __version__ == "0.1.0"
+    assert __version__ == "1.0.0"
 
 
 def test_doctor_command_runs(capsys: pytest.CaptureFixture[str]) -> None:

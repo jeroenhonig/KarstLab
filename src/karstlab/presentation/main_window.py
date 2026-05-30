@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -36,33 +35,30 @@ from karstlab.business.marker_manager import (
     parse_coordinate,
 )
 from karstlab.business.pipeline import run_headless_analysis
-from karstlab.data.land_profiles import list_land_profile_ids, load_land_profile
+from karstlab.data.land_profiles import load_land_profile
 from karstlab.data.project_io import (
     canonical_output_paths,
-    create_project,
     load_project,
     save_project,
 )
-from karstlab.data.schemas import AnalysisParams, DepressionResult, PipelineResult, ProjectFile
-from karstlab.data.settings_resolver import resolve_analysis_params
+from karstlab.data.schemas import DepressionResult, PipelineResult, ProjectFile
 from karstlab.data.user_settings import add_recent_project, load_user_settings, save_user_settings
 from karstlab.data.vector_io import read_gpx_waypoints, read_kml_points, to_gpx
 from karstlab.infrastructure.whitebox_adapter import WhiteboxAdapter
+from karstlab.presentation._styles import _stylesheet
+from karstlab.presentation.analysis_worker import (
+    AnalysisRunner,
+    AnalysisWorker,
+)
 from karstlab.presentation.export_tab import ExportTab
 from karstlab.presentation.guided_workflow import GuidedWorkflowPanel
 from karstlab.presentation.layers_tab import LayersTab
+from karstlab.presentation.map_view import MapView
 from karstlab.presentation.markers_tab import MarkersTab
 from karstlab.presentation.results_tab import ResultsTab
 from karstlab.presentation.settings_dialog import SettingsDialog
 from karstlab.presentation.shortcuts_dialog import ShortcutsDialog
 from karstlab.presentation.tools_tab import ToolsTab
-from karstlab.presentation._styles import _stylesheet
-from karstlab.presentation.analysis_worker import (
-    AnalysisCancelled,
-    AnalysisRunner,
-    AnalysisWorker,
-)
-from karstlab.presentation.map_view import MapView
 from karstlab.presentation.update_banner import UpdateBanner
 from karstlab.version import __version__
 
@@ -317,7 +313,8 @@ class MainWindow(QMainWindow):
     def _setup_shortcuts(self) -> None:
         from PySide6.QtGui import QShortcut
 
-        for key, index in (("Ctrl+1", 0), ("Ctrl+2", 1), ("Ctrl+3", 2), ("Ctrl+4", 3), ("Ctrl+5", 4)):
+        shortcuts = [("Ctrl+1", 0), ("Ctrl+2", 1), ("Ctrl+3", 2), ("Ctrl+4", 3), ("Ctrl+5", 4)]
+        for key, index in shortcuts:
             shortcut = QShortcut(QKeySequence(key), self)
             shortcut.activated.connect(
                 lambda i=index: self.sidebar.setCurrentIndex(i)
@@ -514,7 +511,9 @@ class MainWindow(QMainWindow):
             return
         self._analysis_thread.requestInterruption()
         self._tools_widget.set_cancel_enabled(False)
-        self._tools_widget.set_status(self.tr("Cancel requested; waiting for current analysis step"))
+        self._tools_widget.set_status(
+            self.tr("Cancel requested; waiting for current analysis step")
+        )
         self.statusBar().showMessage(self.tr("Cancel requested"))
 
     def _on_progress(self, message: str) -> None:
@@ -639,7 +638,8 @@ class MainWindow(QMainWindow):
 
             combined = gpd.GeoDataFrame(gpd.pd.concat(frames, ignore_index=True))
             to_gpx(combined, Path(save_path))
-            self.statusBar().showMessage(self.tr("Exported markers to {0}").format(Path(save_path).name))
+            name = Path(save_path).name
+            self.statusBar().showMessage(self.tr("Exported markers to {0}").format(name))
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, self.tr("Export failed"), str(exc))
 
@@ -687,7 +687,10 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(
                 self,
                 self.tr("Analysis still running"),
-                self.tr("The current analysis step is still running. Close is postponed to avoid data loss."),
+                self.tr(
+                    "The current analysis step is still running."
+                    " Close is postponed to avoid data loss."
+                ),
             )
             event.ignore()
             return
@@ -766,4 +769,12 @@ def _extract_percent(message: str) -> int:
 
 
 
-__all__ = ["AnalysisRunner", "AnalysisWorker", "MainWindow", "MapView"]
+__all__ = [
+    "AnalysisRunner",
+    "AnalysisWorker",
+    "MainWindow",
+    "MapView",
+    "_default_analysis_runner",
+    "_progress_value",
+    "_stylesheet",
+]

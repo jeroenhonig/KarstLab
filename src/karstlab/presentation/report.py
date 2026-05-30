@@ -122,7 +122,10 @@ def generate_html_report(
             f"      <p>{_text(i18n['title'])}</p>",
             f"      <h1>{_text(i18n['project'])} {_text(str(pipeline_result.project_id))}</h1>",
             "    </header>",
-            _section(i18n["run_summary"], _run_summary(pipeline_result, len(report_depressions), i18n)),
+            _section(
+                i18n["run_summary"],
+                _run_summary(pipeline_result, len(report_depressions), i18n),
+            ),
             _section(
                 i18n["analysis_parameters"],
                 _mapping_table(analysis_params.model_dump(mode="json")),

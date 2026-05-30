@@ -216,7 +216,8 @@ class MarkersTab(QWidget):
         self.markers_changed.emit(self._marker_paths)
         count = len(markers)
         suffix = self.tr("marker") if count == 1 else self.tr("markers")
-        self.status_updated.emit(self.tr("Imported {0} {1}: {2}").format(count, suffix, marker_path.name))
+        msg = self.tr("Imported {0} {1}: {2}").format(count, suffix, marker_path.name)
+        self.status_updated.emit(msg)
 
     def _export_gpx(self) -> None:
         if not self._marker_paths:
@@ -240,7 +241,11 @@ class MarkersTab(QWidget):
             self.markers_changed.emit(self._marker_paths)
 
     def _fetch_poi(self) -> None:
-        if self._poi_fetch_button is None or self._poi_dept_combo is None or self._poi_source_combo is None:
+        if (  # noqa: E501
+            self._poi_fetch_button is None
+            or self._poi_dept_combo is None
+            or self._poi_source_combo is None
+        ):
             return
         if self._poi_thread is not None and self._poi_thread.isRunning():
             return
@@ -269,7 +274,9 @@ class MarkersTab(QWidget):
         frame = poi_records_to_geodataframe(records)
         import tempfile
         safe_source = "".join(c if c.isalnum() else "-" for c in source)[:32]
-        tmp_path = Path(tempfile.gettempdir()) / "karstlab-gui-projects" / "_poi" / f"{safe_source}.gpx"
+        tmp_path = (
+            Path(tempfile.gettempdir()) / "karstlab-gui-projects" / "_poi" / f"{safe_source}.gpx"
+        )
         tmp_path.parent.mkdir(parents=True, exist_ok=True)
         to_gpx(frame, tmp_path)
         if tmp_path not in self._marker_paths:

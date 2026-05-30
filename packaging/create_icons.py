@@ -78,11 +78,14 @@ def create_png(size: int) -> Path:
         )
         return out
     except (FileNotFoundError, subprocess.CalledProcessError):
-        print(
-            f"ERROR: Could not rasterize SVG to PNG. Install cairosvg, Inkscape, or ImageMagick.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        pass
+
+    print(
+        f"WARNING: No SVG rasterizer found for size {size}. "
+        "Install cairosvg, Inkscape, or ImageMagick to generate PNG icons.",
+        file=sys.stderr,
+    )
+    return out  # caller must check existence
 
 
 def create_icns() -> None:
@@ -100,17 +103,23 @@ def create_icns() -> None:
     # macOS icon sizes: 16, 32, 64, 128, 256, 512, 1024
     sizes = [16, 32, 64, 128, 256, 512]
 
+    generated_any = False
     for size in sizes:
-        # Regular resolution
         png = create_png(size)
+        if not png.exists():
+            continue
         dest = iconset / f"icon_{size}x{size}.png"
         dest.write_bytes(png.read_bytes())
-
-        # Retina (@2x)
+        generated_any = True
         if size >= 32:
             png2x = create_png(size * 2)
-            dest2x = iconset / f"icon_{size}x{size}@2x.png"
-            dest2x.write_bytes(png2x.read_bytes())
+            if png2x.exists():
+                dest2x = iconset / f"icon_{size}x{size}@2x.png"
+                dest2x.write_bytes(png2x.read_bytes())
+
+    if not generated_any:
+        print("WARNING: No PNGs generated; skipping .icns creation.", file=sys.stderr)
+        return
 
     try:
         subprocess.run(
@@ -144,19 +153,22 @@ def create_ico() -> None:
         return
 
     sizes = [16, 32, 48, 64, 128, 256]
-    images = [Image.open(create_png(s)).convert("RGBA") for s in sizes]
-
+    png_paths = [create_png(s) for s in sizes]
+    available = [(s, p) for s, p in zip(sizes, png_paths) if p.exists()]
+    if not available:
+        print("WARNING: No PNGs available for .ico creation.", file=sys.stderr)
+        return
+    imgs = [Image.open(p).convert("RGBA") for _, p in available]
     try:
-        images[0].save(
+        imgs[0].save(
             str(ICONS_DIR / "karstlab.ico"),
             format="ICO",
-            sizes=[(s, s) for s in sizes],
-            append_images=images[1:],
+            sizes=[(s, s) for s, _ in available],
+            append_images=imgs[1:],
         )
         print("✓ Created karstlab.ico")
-    except Exception as e:
-        print(f"ERROR: Failed to create .ico: {e}", file=sys.stderr)
-        sys.exit(1)
+    except Exception as e:  # noqa: BLE001
+        print(f"WARNING: Failed to create .ico: {e}", file=sys.stderr)
 
 
 def main() -> None:

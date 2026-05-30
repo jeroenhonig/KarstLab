@@ -6,17 +6,16 @@ from pathlib import Path
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
     QVBoxLayout,
-    QCheckBox,
     QWidget,
 )
 
@@ -39,7 +38,9 @@ class SettingsDialog(QDialog):
         self._whitebox_path_value: Path | None = settings.whitebox_path
 
         self._language_combo = QComboBox()
-        self._language_combo.addItems([self.tr("English (en)"), self.tr("Nederlands (nl)"), self.tr("Français (fr)")])
+        self._language_combo.addItems([
+            self.tr("English (en)"), self.tr("Nederlands (nl)"), self.tr("Français (fr)"),
+        ])
         self._set_combo_index_by_locale(self._language_combo, settings.language)
 
         self._land_profile_combo = QComboBox()

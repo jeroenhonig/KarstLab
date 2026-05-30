@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
 
 class GuidedWorkflowPanel(QFrame):
     """Collapsible step-by-step workflow guidance panel."""
@@ -97,8 +98,9 @@ class GuidedWorkflowPanel(QFrame):
     def _format_step_text(self, step: int) -> str:
         """Format step text with optional checkmark."""
         steps = self._guided_steps()
-        prefix = "✓ " if step in self._completed_steps else ""
         total = len(steps)
+        if step in self._completed_steps:
+            return self.tr("✓ Step {0}/{1}: {2}").format(step + 1, total, steps[step])
         return self.tr("Step {0}/{1}: {2}").format(step + 1, total, steps[step])
 
     def _on_prev(self) -> None:

@@ -71,7 +71,15 @@ def build_top_depressions_map(
 
     selected = list(depressions[:max_results])
     location = _initial_location(selected)
-    folium_map = folium.Map(location=location, zoom_start=zoom_start, tiles=tiles)
+    if tiles.startswith("http"):
+        folium_map = folium.Map(location=location, zoom_start=zoom_start, tiles=None)
+        folium.TileLayer(
+            tiles=tiles,
+            attr="&copy; KarstLab contributors",
+            name="Base map",
+        ).add_to(folium_map)
+    else:
+        folium_map = folium.Map(location=location, zoom_start=zoom_start, tiles=tiles)
 
     _add_depression_geometries(folium_map, selected)
     _add_numbered_markers(folium_map, selected)

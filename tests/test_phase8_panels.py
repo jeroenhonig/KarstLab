@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import os
-import sys
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
-from datetime import UTC, datetime
 
 import pytest
 
@@ -181,7 +180,7 @@ class TestResultsTab:
         })
 
     def test_display_results_populates_table(self, tab: Any) -> None:
-        from karstlab.data.schemas import PipelineResult, AnalysisParams, PipelineStatus
+        from karstlab.data.schemas import AnalysisParams, PipelineResult, PipelineStatus
         depressions = [
             self._make_depression("d1", rank=1, depth=5.0),
             self._make_depression("d2", rank=2, depth=3.0),
@@ -201,7 +200,7 @@ class TestResultsTab:
         assert tab._table.rowCount() == 2
 
     def test_quality_flags_column_shows_edge_warning(self, tab: Any) -> None:
-        from karstlab.data.schemas import DepressionResult, DepressionQualityFlags
+        from karstlab.data.schemas import DepressionResult
         depression = DepressionResult.model_validate({
             "id": "flagged",
             "rank": 1,
