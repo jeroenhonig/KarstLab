@@ -11,6 +11,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from karstlab.data.schemas import PoiType
+
 logger = logging.getLogger(__name__)
 
 # French department codes to names
@@ -118,6 +120,16 @@ FRENCH_DEPARTMENTS: dict[str, str] = {
     "976": "Mayotte",
 }
 
+_BRGM_TYPE_MAP: dict[str, PoiType] = {
+    "Perte": PoiType.PERTE,
+    "perte": PoiType.PERTE,
+    "Résurgence": PoiType.RESURGENCE,
+    "resurgence": PoiType.RESURGENCE,
+    "résurgence": PoiType.RESURGENCE,
+    "Grotte": PoiType.CAVE,
+    "grotte": PoiType.CAVE,
+}
+
 
 @dataclass(frozen=True)
 class PoiRecord:
@@ -129,6 +141,7 @@ class PoiRecord:
     source: str
     description: str = ""
     external_id: str = ""
+    poi_type: PoiType = PoiType.UNKNOWN
 
 
 def _validate_department(department: str) -> bool:
@@ -150,9 +163,25 @@ def _read_cache(cache_path: Path) -> list[PoiRecord] | None:
     try:
         data = json.loads(cache_path.read_text(encoding="utf-8"))
         records = data.get("records", [])
-        return [PoiRecord(**rec) for rec in records]
+        if not isinstance(records, list):
+            return None
+        if not all(isinstance(rec, dict) for rec in records):
+            return None
+        return [
+            PoiRecord(**(rec | {"poi_type": _poi_type_from_cache(rec.get("poi_type"))}))
+            for rec in records
+        ]
     except (json.JSONDecodeError, KeyError, TypeError, ValueError):
         return None
+
+
+def _poi_type_from_cache(value: Any) -> PoiType:
+    if value is None:
+        return PoiType.UNKNOWN
+    try:
+        return PoiType(value)
+    except ValueError:
+        return PoiType.UNKNOWN
 
 
 def _write_cache(cache_path: Path, records: list[PoiRecord], department: str) -> None:
@@ -169,6 +198,7 @@ def _write_cache(cache_path: Path, records: list[PoiRecord], department: str) ->
                 "source": rec.source,
                 "description": rec.description,
                 "external_id": rec.external_id,
+                "poi_type": rec.poi_type.value,
             }
             for rec in records
         ],
@@ -252,6 +282,10 @@ def fetch_brgm_cavites(
                     source="brgm_cavites",
                     description=description,
                     external_id=str(item.get("id_cavite", "")),
+                    poi_type=_BRGM_TYPE_MAP.get(
+                        str(item.get("type_cavite", "")),
+                        PoiType.UNKNOWN,
+                    ),
                 )
                 records.append(record)
             except (KeyError, TypeError, ValueError):

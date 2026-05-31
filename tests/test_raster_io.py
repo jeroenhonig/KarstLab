@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from rasterio.crs import CRS
+from rasterio.windows import Window
+from rasterio.windows import transform as window_transform
 
 from karstlab.data.raster_io import read_band, read_dem, save_geotiff
 from tests.fixtures.synthetic_dem import (
@@ -40,6 +42,19 @@ def test_read_band_returns_single_raster_band(tmp_path) -> None:  # type: ignore
     assert band.shape == (100, 100)
     assert np.isclose(band[0, 0], SYNTHETIC_DEM_NODATA)
     assert band[55, 50] < band[10, 10]
+
+
+def test_read_dem_supports_windowed_reads(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    dem_path = write_synthetic_dem(tmp_path / "synthetic_dem.tif")
+    window = Window(col_off=10, row_off=20, width=8, height=6)
+
+    dem = read_dem(dem_path, window=window)
+
+    assert dem.array.shape == (6, 8)
+    assert dem.metadata.width == 8
+    assert dem.metadata.height == 6
+    assert dem.metadata.transform == window_transform(window, SYNTHETIC_DEM_TRANSFORM)
+    np.testing.assert_allclose(dem.array, synthetic_dem_array()[20:26, 10:18])
 
 
 def test_save_geotiff_round_trip_preserves_metadata(tmp_path) -> None:  # type: ignore[no-untyped-def]

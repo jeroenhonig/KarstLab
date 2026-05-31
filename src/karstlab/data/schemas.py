@@ -59,6 +59,13 @@ class PoiSourceType(StrEnum):
     SPELEBASE = "spelebase"
 
 
+class PoiType(StrEnum):
+    CAVE = "cave"
+    PERTE = "perte"
+    RESURGENCE = "resurgence"
+    UNKNOWN = "unknown"
+
+
 class LocalizedText(StrictModel):
     en: str = Field(min_length=1)
     nl: str | None = Field(default=None, min_length=1)

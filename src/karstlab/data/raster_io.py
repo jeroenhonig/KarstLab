@@ -10,6 +10,8 @@ import numpy as np
 import rasterio
 from affine import Affine
 from rasterio.crs import CRS
+from rasterio.windows import Window
+from rasterio.windows import transform as window_transform
 
 
 @dataclass(frozen=True)
@@ -32,26 +34,45 @@ class DemData:
     metadata: DemMetadata
 
 
-def read_dem(path: Path, *, band: int = 1) -> DemData:
+def read_dem(
+    path: Path,
+    *,
+    band: int = 1,
+    window: Window | None = None,
+) -> DemData:
     with rasterio.open(path) as dataset:
-        array = dataset.read(band)
+        array = dataset.read(band, window=window)
+        transform = dataset.transform
+        bounds = tuple(dataset.bounds)
+        width = dataset.width
+        height = dataset.height
+        if window is not None:
+            transform = window_transform(window, dataset.transform)
+            bounds = tuple(dataset.window_bounds(window))
+            width = int(window.width)
+            height = int(window.height)
         metadata = DemMetadata(
             path=path,
-            width=dataset.width,
-            height=dataset.height,
+            width=width,
+            height=height,
             count=dataset.count,
             dtype=dataset.dtypes[band - 1],
             crs=dataset.crs,
-            transform=dataset.transform,
+            transform=transform,
             nodata=dataset.nodata,
-            bounds=tuple(dataset.bounds),
+            bounds=bounds,
             resolution=dataset.res,
         )
     return DemData(array=array, metadata=metadata)
 
 
-def read_band(path: Path, *, band: int = 1) -> np.ndarray:
-    return read_dem(path, band=band).array
+def read_band(
+    path: Path,
+    *,
+    band: int = 1,
+    window: Window | None = None,
+) -> np.ndarray:
+    return read_dem(path, band=band, window=window).array
 
 
 def save_geotiff(

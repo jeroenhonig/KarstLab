@@ -4,7 +4,12 @@ import numpy as np
 import pytest
 from rasterio.transform import from_origin
 
-from karstlab.business.dolines import DolineDetectionParams, DolineDetector, detect_dolines
+from karstlab.business.dolines import (
+    DolineDetectionParams,
+    DolineDetector,
+    depression_depth_raster,
+    detect_dolines,
+)
 from karstlab.data.schemas import DepthConfidence
 from tests.fixtures.synthetic_dem import (
     SYNTHETIC_DEM_CRS,
@@ -12,6 +17,35 @@ from tests.fixtures.synthetic_dem import (
     SYNTHETIC_DEM_TRANSFORM,
     synthetic_dem_array,
 )
+
+
+def test_depression_depth_raster_masks_nan_nodata() -> None:
+    # nodata is NaN: an exact `== nodata` comparison would never match, leaving
+    # spurious depths at nodata cells. depression_depth_raster must mask them.
+    original = np.full((4, 4), 250.0, dtype=np.float64)
+    original[0, 0] = np.nan  # nodata in original
+    original[1, 1] = 243.0  # genuine 7 m depression
+    filled = np.full((4, 4), 250.0, dtype=np.float64)
+    filled[3, 3] = np.nan  # nodata only in filled
+
+    depth = depression_depth_raster(original, filled, nodata=float("nan"))
+
+    assert depth[0, 0] == 0.0  # nodata in original → masked, not 250.0
+    assert depth[3, 3] == 0.0  # nodata in filled → masked
+    assert depth[1, 1] == pytest.approx(7.0)  # real depression preserved
+    assert float(np.min(depth)) >= 0.0
+
+
+def test_depression_depth_raster_masks_numeric_nodata() -> None:
+    original = np.full((3, 3), 100.0, dtype=np.float64)
+    original[0, 0] = SYNTHETIC_DEM_NODATA
+    original[1, 1] = 96.0
+    filled = np.full((3, 3), 100.0, dtype=np.float64)
+
+    depth = depression_depth_raster(original, filled, nodata=SYNTHETIC_DEM_NODATA)
+
+    assert depth[0, 0] == 0.0
+    assert depth[1, 1] == pytest.approx(4.0)
 
 
 def test_detect_dolines_finds_three_known_synthetic_depressions() -> None:

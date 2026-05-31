@@ -35,6 +35,7 @@ def test_build_project_paths_uses_canonical_directories(tmp_path: Path) -> None:
     assert paths.rasters_dir == paths.project_dir / "output" / "rasters"
     assert paths.vectors_dir == paths.project_dir / "output" / "vectors"
     assert paths.export_dir == paths.project_dir / "output" / "export"
+    assert paths.rosette_dir == paths.project_dir / "output" / "rosettes"
     assert paths.map_dir == paths.project_dir / "map"
     assert paths.cache_dir == paths.project_dir / "cache"
     assert paths.logs_dir == paths.project_dir / "logs"
@@ -48,6 +49,7 @@ def test_project_directories_constant_matches_project_paths() -> None:
         "output/rasters",
         "output/vectors",
         "output/export",
+        "output/rosettes",
         "map",
         "cache",
         "logs",
@@ -191,6 +193,9 @@ def test_canonical_output_paths_include_expected_release_outputs(tmp_path: Path)
     assert paths["report"] == project.export_dir / "report.html"
     assert paths["interactive_map"] == project.map_dir / "index.html"
     assert paths["hillshade"] == project.output_dir / "rasters" / "hillshade.tif"
+    assert paths["hillshade_multi"] == project.output_dir / "rasters" / "hillshade_multi.tif"
+    assert paths["depression_depth"] == project.output_dir / "rasters" / "depression_depth.tif"
+    assert paths["rosette_dir"] == project.output_dir / "rosettes"
     assert paths["slope"] == project.output_dir / "rasters" / "slope.tif"
     assert paths["curvature"] == project.output_dir / "rasters" / "curvature.tif"
     assert paths["top_depressions_gpx"] == project.export_dir / "Top_Depressions_trou-du-vent.gpx"

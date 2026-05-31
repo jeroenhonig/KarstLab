@@ -15,6 +15,7 @@ from karstlab.data.poi import (
     fetch_poi,
     fetch_spelebase,
 )
+from karstlab.data.schemas import PoiType
 
 
 class TestPoiRecord:
@@ -41,6 +42,7 @@ class TestPoiRecord:
         record = PoiRecord(name="Test", lat=45.0, lon=2.0, source="spelebase")
         assert record.description == ""
         assert record.external_id == ""
+        assert record.poi_type == PoiType.UNKNOWN
 
 
 class TestFrenchDepartments:
@@ -307,6 +309,42 @@ class TestFetchBrgmCavitesDataParsing:
         assert len(result) == 1
         assert result[0].name == "Good Cave"
 
+    @pytest.mark.parametrize(
+        ("type_cavite", "expected"),
+        [
+            ("Perte", PoiType.PERTE),
+            ("Résurgence", PoiType.RESURGENCE),
+            ("not observed", PoiType.UNKNOWN),
+        ],
+    )
+    @patch("karstlab.data.poi.urllib.request.urlopen")
+    def test_maps_brgm_type_cavite_to_poi_type(
+        self,
+        mock_urlopen: MagicMock,
+        type_cavite: str,
+        expected: PoiType,
+    ) -> None:
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(
+            {
+                "data": [
+                    {
+                        "nom_cavite": "Typed Cave",
+                        "wgs84_latitude": 45.0,
+                        "wgs84_longitude": 2.0,
+                        "id_cavite": 1,
+                        "type_cavite": type_cavite,
+                    }
+                ]
+            }
+        ).encode("utf-8")
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+
+        result = fetch_brgm_cavites("06")
+
+        assert result[0].poi_type == expected
+
 
 class TestFetchSpelebase:
     """Test Spélébase stub implementation."""
@@ -474,6 +512,60 @@ class TestCachePersistence:
         assert cache_file.exists()
         # Temporary file should not exist
         assert not tmp_file.exists()
+
+    @patch("karstlab.data.poi.urllib.request.urlopen")
+    def test_cache_round_trip_preserves_poi_type(
+        self, mock_urlopen: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(
+            {
+                "data": [
+                    {
+                        "nom_cavite": "Perte Cache",
+                        "wgs84_latitude": 45.0,
+                        "wgs84_longitude": 2.0,
+                        "id_cavite": 1,
+                        "type_cavite": "Perte",
+                    }
+                ]
+            }
+        ).encode("utf-8")
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+        fetch_brgm_cavites("06", cache_dir=tmp_path)
+
+        mock_urlopen.side_effect = Exception("Network error")
+        result = fetch_brgm_cavites("06", cache_dir=tmp_path)
+
+        assert result[0].poi_type == PoiType.PERTE
+
+    @patch("karstlab.data.poi.urllib.request.urlopen")
+    def test_cache_without_poi_type_loads_as_unknown(
+        self, mock_urlopen: MagicMock, tmp_path: Path
+    ) -> None:
+        cache_file = tmp_path / "poi" / "brgm_cavites_06.json"
+        cache_file.parent.mkdir(parents=True)
+        cache_file.write_text(
+            json.dumps(
+                {
+                    "records": [
+                        {
+                            "name": "Old Cache",
+                            "lat": 45.0,
+                            "lon": 2.0,
+                            "source": "brgm_cavites",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        mock_urlopen.side_effect = Exception("Network error")
+
+        result = fetch_brgm_cavites("06", cache_dir=tmp_path)
+
+        assert result[0].poi_type == PoiType.UNKNOWN
 
 
 class TestNetworkTimeout:

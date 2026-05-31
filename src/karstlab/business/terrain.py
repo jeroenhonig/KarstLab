@@ -36,6 +36,39 @@ def hillshade(
     return cast(NDArray[np.float64], np.clip(255.0 * shaded, 0.0, 255.0))
 
 
+def multidirectional_hillshade(
+    dem: NDArray[Any],
+    *,
+    cell_size: Affine,
+    azimuths_deg: tuple[float, ...] = (
+        0.0,
+        45.0,
+        90.0,
+        135.0,
+        180.0,
+        225.0,
+        270.0,
+        315.0,
+    ),
+    altitude_deg: float = 45.0,
+) -> NDArray[np.float64]:
+    """Combine hillshades from multiple solar azimuths using their mean.
+
+    Returns float64 to stay dtype-consistent with the other terrain
+    derivatives (hillshade, slope, curvature).
+    """
+    if not azimuths_deg:
+        raise ValueError("azimuths_deg must contain at least one azimuth")
+    shaded = np.mean(
+        [
+            hillshade(dem, cell_size=cell_size, azimuth=azimuth, altitude=altitude_deg)
+            for azimuth in azimuths_deg
+        ],
+        axis=0,
+    )
+    return cast(NDArray[np.float64], shaded)
+
+
 def slope(dem: NDArray[Any], *, cell_size: CellSize = 1.0) -> NDArray[np.float64]:
     """Return slope angle in degrees."""
     elevation = _as_elevation(dem)

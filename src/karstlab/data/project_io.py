@@ -18,6 +18,9 @@ MAP_FILENAME = "index.html"
 REPORT_FILENAME = "report.html"
 ASSEMBLED_DEM_FILENAME = "assembled_dem.tif"
 HILLSHADE_FILENAME = "hillshade.tif"
+HILLSHADE_MULTI_FILENAME = "hillshade_multi.tif"
+DEPRESSION_DEPTH_FILENAME = "depression_depth.tif"
+CONDUIT_PROBABILITY_FILENAME = "conduit_probability.tif"
 SLOPE_FILENAME = "slope.tif"
 CURVATURE_FILENAME = "curvature.tif"
 
@@ -27,6 +30,7 @@ PROJECT_DIRECTORIES = (
     "output/rasters",
     "output/vectors",
     "output/export",
+    "output/rosettes",
     "map",
     "cache",
     "logs",
@@ -42,6 +46,10 @@ CANONICAL_FILENAMES = {
     "report": REPORT_FILENAME,
     "assembled_dem": ASSEMBLED_DEM_FILENAME,
     "hillshade": HILLSHADE_FILENAME,
+    "hillshade_multi": HILLSHADE_MULTI_FILENAME,
+    "depression_depth": DEPRESSION_DEPTH_FILENAME,
+    "conduit_probability": CONDUIT_PROBABILITY_FILENAME,
+    "conduit_contours": "conduit_contours_{slug}.geojson",
     "slope": SLOPE_FILENAME,
     "curvature": CURVATURE_FILENAME,
     "top_depressions_gpx": "Top_Depressions_{slug}.gpx",
@@ -60,6 +68,7 @@ class ProjectPaths:
     rasters_dir: Path
     vectors_dir: Path
     export_dir: Path
+    rosette_dir: Path
     map_dir: Path
     cache_dir: Path
     logs_dir: Path
@@ -83,6 +92,7 @@ def build_project_paths(base_dir: Path, slug: str) -> ProjectPaths:
         rasters_dir=project_dir / "output" / "rasters",
         vectors_dir=project_dir / "output" / "vectors",
         export_dir=project_dir / "output" / "export",
+        rosette_dir=project_dir / "output" / "rosettes",
         map_dir=project_dir / "map",
         cache_dir=project_dir / "cache",
         logs_dir=project_dir / "logs",
@@ -99,6 +109,11 @@ def canonical_output_paths(project: ProjectFile) -> dict[str, Path]:
         "report": project.export_dir / REPORT_FILENAME,
         "assembled_dem": project.input_dir / ASSEMBLED_DEM_FILENAME,
         "hillshade": project.output_dir / "rasters" / HILLSHADE_FILENAME,
+        "hillshade_multi": project.output_dir / "rasters" / HILLSHADE_MULTI_FILENAME,
+        "depression_depth": project.output_dir / "rasters" / DEPRESSION_DEPTH_FILENAME,
+        "conduit_probability": project.output_dir / "rasters" / CONDUIT_PROBABILITY_FILENAME,
+        "conduit_contours": project.export_dir / f"conduit_contours_{project.slug}.geojson",
+        "rosette_dir": project.output_dir / "rosettes",
         "slope": project.output_dir / "rasters" / SLOPE_FILENAME,
         "curvature": project.output_dir / "rasters" / CURVATURE_FILENAME,
         "top_depressions_gpx": project.export_dir / f"Top_Depressions_{project.slug}.gpx",
@@ -132,6 +147,7 @@ def create_project(
         paths.rasters_dir,
         paths.vectors_dir,
         paths.export_dir,
+        paths.rosette_dir,
         paths.map_dir,
         paths.cache_dir,
         paths.logs_dir,

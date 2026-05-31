@@ -3,19 +3,25 @@
 from __future__ import annotations
 
 import json
+import logging
 import xml.etree.ElementTree as ET
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import geopandas as gpd
 import gpxpy
 import gpxpy.gpx
 import simplekml
 from pyproj import CRS
+from shapely import ops
 from shapely.geometry import LineString, Point, Polygon
+
+logger = logging.getLogger(__name__)
 
 WGS84_CRS = "EPSG:4326"
 WGS84 = CRS.from_user_input(WGS84_CRS)
+CONNECTED_SEGMENT_TOLERANCE_M = 1.0
 
 
 def to_geojson(frame: gpd.GeoDataFrame, path: Path) -> Path:
@@ -79,6 +85,42 @@ def read_gpx_waypoints(path: Path) -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(records, geometry="geometry", crs=WGS84_CRS)
 
 
+def read_gpx_track(path: Path) -> gpd.GeoDataFrame:
+    """Read GPX track segments into WGS84 LineString rows."""
+    with path.open(encoding="utf-8") as handle:
+        gpx = gpxpy.parse(handle)
+
+    records: list[dict[str, Any]] = []
+    for track in gpx.tracks:
+        coordinates: list[tuple[float, float]] = []
+        first_time: datetime | None = None
+        for segment_index, segment in enumerate(track.segments):
+            if len(segment.points) < 2:
+                logger.warning(
+                    "Skipping GPX track segment %d of %r: only %d point(s), need >= 2",
+                    segment_index,
+                    track.name,
+                    len(segment.points),
+                )
+                continue
+            for point in segment.points:
+                coordinates.append((point.longitude, point.latitude))
+                if first_time is None:
+                    first_time = point.time
+        if coordinates:
+            records.append(
+                {
+                    "name": track.name,
+                    "time": first_time,
+                    "geometry": LineString(coordinates),
+                }
+            )
+
+    if not records:
+        raise ValueError("No GPX track segments found")
+    return gpd.GeoDataFrame(records, geometry="geometry", crs=WGS84_CRS)
+
+
 def read_kml_points(path: Path) -> gpd.GeoDataFrame:
     """Read Point Placemarks from a KML file into a WGS84 GeoDataFrame."""
     root = ET.parse(path).getroot()
@@ -104,6 +146,69 @@ def read_kml_points(path: Path) -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(records, geometry="geometry", crs=WGS84_CRS)
 
 
+def read_kml_lines(path: Path) -> gpd.GeoDataFrame:
+    """Read KML LineString Placemarks into a WGS84 GeoDataFrame."""
+    root = ET.parse(path).getroot()
+    namespace = _xml_namespace(root.tag)
+    placemark_path = ".//kml:Placemark" if namespace else ".//Placemark"
+    name_path = "kml:name" if namespace else "name"
+    description_path = "kml:description" if namespace else "description"
+    coordinates_path = (
+        ".//kml:LineString/kml:coordinates" if namespace else ".//LineString/coordinates"
+    )
+    ns = {"kml": namespace} if namespace else {}
+
+    records: list[dict[str, Any]] = []
+    for placemark in root.findall(placemark_path, ns):
+        coordinates = placemark.findtext(coordinates_path, namespaces=ns)
+        if coordinates is None:
+            continue
+        line_coordinates = _parse_kml_coordinates(coordinates)
+        if len(line_coordinates) < 2:
+            continue
+        records.append(
+            {
+                "name": placemark.findtext(name_path, default=None, namespaces=ns),
+                "description": placemark.findtext(description_path, default=None, namespaces=ns),
+                "geometry": LineString(line_coordinates),
+            }
+        )
+
+    if not records:
+        raise ValueError("No KML LineString geometries found")
+    return gpd.GeoDataFrame(records, geometry="geometry", crs=WGS84_CRS)
+
+
+def survey_line_geometry(
+    gdf: gpd.GeoDataFrame,
+    *,
+    downstream_end: Literal["first", "last"] = "first",
+) -> LineString:
+    """Extract a connected survey LineString using the downstream-end convention."""
+    if gdf.empty:
+        raise ValueError("survey line GeoDataFrame is empty")
+    if gdf.crs is None:
+        raise ValueError("survey line GeoDataFrame must have a CRS")
+
+    lines = [geometry for geometry in gdf.geometry if isinstance(geometry, LineString)]
+    if len(lines) != len(gdf):
+        raise ValueError("survey line GeoDataFrame must contain only LineString geometries")
+
+    metric_lines = _metric_lines(gdf)
+    coordinates: list[tuple[float, float]] = []
+    for index, line in enumerate(lines):
+        if index > 0:
+            previous_end = Point(metric_lines[index - 1].coords[-1])
+            current_start = Point(metric_lines[index].coords[0])
+            if previous_end.distance(current_start) > CONNECTED_SEGMENT_TOLERANCE_M:
+                raise ValueError("survey line segments must be end-to-end connected")
+        coordinates.extend((float(x), float(y)) for x, y in line.coords)
+
+    if downstream_end == "last":
+        coordinates.reverse()
+    return LineString(coordinates)
+
+
 def _as_wgs84(frame: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     if frame.crs is None:
         raise ValueError("Vector data must have a CRS before export")
@@ -115,6 +220,22 @@ def _as_wgs84(frame: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 def _description(properties: dict[str, Any]) -> str:
     filtered = {key: value for key, value in properties.items() if key != "geometry"}
     return json.dumps(filtered, ensure_ascii=False, default=str)
+
+
+def _parse_kml_coordinates(coordinates: str) -> list[tuple[float, float]]:
+    parsed: list[tuple[float, float]] = []
+    for coordinate in coordinates.split():
+        lon, lat, *_ = [float(value) for value in coordinate.split(",")]
+        parsed.append((lon, lat))
+    return parsed
+
+
+def _metric_lines(gdf: gpd.GeoDataFrame) -> list[LineString]:
+    metric_crs = gdf.crs
+    if CRS.from_user_input(metric_crs).is_geographic:
+        metric_crs = gdf.estimate_utm_crs()
+    projected = gdf.to_crs(metric_crs)
+    return [ops.transform(lambda x, y, z=None: (x, y), geometry) for geometry in projected.geometry]
 
 
 def _add_geometry_to_kml(

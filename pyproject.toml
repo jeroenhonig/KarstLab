@@ -51,6 +51,9 @@ dev = [
 package = [
   "pyinstaller>=6.9",
 ]
+conduit = [
+  "scikit-learn>=1.5",
+]
 
 [project.scripts]
 karstlab = "karstlab.cli.main:main"

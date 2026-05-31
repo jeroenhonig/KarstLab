@@ -9,14 +9,14 @@ semantics without explicit override from the architect.**
 
 | Plan | Status | Branch | Notes |
 |------|--------|--------|-------|
-| G | IN REVIEW — blocking issues, do not merge | `codex/plan-g-scalability` | See "Plan G Review Findings" below |
-| C | pending | — | |
-| D | pending | — | |
-| A | pending | — | |
-| B | pending | — | |
-| E | pending | — | |
-| F | pending | — | |
-| H | pending | — | |
+| G | implemented — ready for review | `codex/plan-g-scalability` | DEM scalability; review findings fixed; `make test` passed |
+| C | implemented — ready for review | `codex/plan-g-scalability` | Survey line import; `make test` passed |
+| D | implemented — ready for review | `codex/plan-g-scalability` | POI type discrimination; `make test` passed |
+| A | implemented — ready for review | `codex/plan-g-scalability` | Multidirectional hillshade; `make test` passed |
+| B | implemented — ready for review | `codex/plan-g-scalability` | Depression depth raster export; `make test` passed |
+| E | implemented — ready for review | `codex/plan-g-scalability` | Doline alignment rosettes; `make test` passed |
+| F | implemented — ready for review | `codex/plan-g-scalability` | Conduit prediction corridor; 20 tests; `make test` passed. See Plan F deviations below. |
+| H | next | — | Backtest validation |
 | I | pending | — | Distance measurement (S) |
 | J | pending | — | BRGM Cavités overlay (M) |
 | K | pending | — | Extra basemaps + WMS (M) |
@@ -24,19 +24,22 @@ semantics without explicit override from the architect.**
 
 ---
 
-## Plan G Review Findings (must fix before merge)
+## Plan G Review Findings (resolved)
 
-**BLOCKING — fix required:**
+These findings were raised during review of `codex/plan-g-scalability` and have been
+addressed in the branch unless explicitly noted as a known limitation.
+
+**Resolved blocking findings:**
 
 1. `pipeline.py:353` — `UserSettings()` creates a fresh instance with defaults, ignoring
    the user's actual `~/.karstlab/settings.json`. The VRT/GeoTIFF threshold decision is
    always made against the factory default (500 MB).
-   **Fix:** `run_headless_analysis()` must accept `user_settings: UserSettings | None = None`
-   and pass it to `_mosaic_exceeds_large_dem_threshold()`.
+   **Resolved:** `run_headless_analysis()` accepts `user_settings: UserSettings | None = None`
+   and passes the resolved instance to `_mosaic_exceeds_large_dem_threshold()`.
 
 2. `pipeline.py:294-309` — `_infer_fallback_crs()` hardcodes `EPSG:2154` for LAMB93 ASC
    files. Violates the global invariant "No CRS hardcoded in business/ functions."
-   **Fix:** Remove `_infer_fallback_crs()`. Use `project.crs_analysis` as the fallback CRS
+   **Resolved:** `_infer_fallback_crs()` was removed. `project.crs_analysis` is the fallback CRS
    when tiles lack an embedded CRS. Pass `fallback_crs=project.crs_analysis` to
    `assemble_vrt()` unconditionally for CRS-less tiles.
 
@@ -45,11 +48,11 @@ semantics without explicit override from the architect.**
    it does not prevent OOM for truly large DEMs. The windowed read support in `read_dem` is
    present but unused in the main pipeline path. The Plan G definition of done passes the
    test (512×512 px) but does not hold for production-scale inputs.
-   **Note:** The test correctly verifies the VRT-mode path is selected. Add a docstring
-   comment to the test acknowledging this limitation. Fixing full OOM prevention is outside
-   Plan G scope as reconstructed; log as a known limitation in this PR.
+   **Known limitation:** The test now explicitly documents that it verifies VRT-mode
+   selection, not full OOM prevention. Fixing complete full-array OOM prevention remains
+   outside Plan G scope as reconstructed.
 
-**OUT OF SCOPE — remove from this branch:**
+**Out-of-scope changes removed from this branch:**
 
 4. `src/karstlab/business/dolines.py` — polygon refactor using `rasterio.features.shapes()`.
    Correct improvement but not Plan G scope. Remove; land in a separate fix.
@@ -57,15 +60,15 @@ semantics without explicit override from the architect.**
 5. `src/karstlab/presentation/main_window.py`, `map_view.py`, `tile_picker_dialog.py` —
    unrelated GUI bug fixes. Remove; land in a separate PR.
 
-**NON-BLOCKING:**
+**Resolved non-blocking findings:**
 
 6. `vrt_builder.py:68` — lazy `from rasterio.crs import CRS as _CRS` inside function body.
-   Move to module-level imports.
+   Moved to module-level imports.
 
 7. `tests/test_vrt_builder.py:99` — `open_spy` condition `not args and not kwargs` is
-   fragile. Use `if Path(str(path)) == vrt.path`. Also add `assert len(source_reads) > 1`.
+   fragile. Updated to `if Path(str(path)) == vrt.path`; added `assert len(source_reads) > 1`.
 
-8. Add test for `assemble_vrt(fallback_crs=...)` code path.
+8. Added test for `assemble_vrt(fallback_crs=...)` code path.
 
 ---
 
@@ -794,12 +797,35 @@ CONDUIT_PROBABILITY_FILENAME = "conduit_probability.tif"
 ```
 
 **Definition of done:**
-- [ ] `business/conduit.py` created
-- [ ] `conduit_probability` and `conduit_contours` in `canonical_output_paths`
-- [ ] `conduit.py` imports from `alignment.py`; `alignment.py` imports nothing from `conduit.py`
-- [ ] All tests (a)–(u) pass
-- [ ] Module docstring declares output is relative model likelihood, not calibrated probability
-- [ ] `make test` passes
+- [x] `business/conduit.py` created
+- [x] `conduit_probability` and `conduit_contours` in `canonical_output_paths`
+- [x] `conduit.py` imports from `alignment.py`; `alignment.py` imports nothing from `conduit.py`
+- [x] All tests (a)–(u) pass (implemented as 20 cases in `tests/test_conduit.py`)
+- [x] Module docstring declares output is relative model likelihood, not calibrated probability
+- [x] `make test` passes
+
+### Plan F — implementation deviations (intentional, approved at build time)
+
+1. **`blocked_side_point` → `LineBarrier` dataclass.** shapely 2.x geometries are
+   immutable C objects and cannot carry an arbitrary `blocked_side_point` attribute
+   (`AttributeError`). Line barriers are therefore passed as a new frozen dataclass
+   `LineBarrier(line, blocked_side_point)` (both WGS84); polygon barriers stay plain
+   shapely geometries. `barrier_geometries` is typed `list[BaseGeometry | LineBarrier]`.
+
+2. **Shared `_fold_bearing` lives in `data/crs.py` as `fold_bearing`.** Per the plan's
+   own implementation note (avoid an `alignment ↔ conduit` circular import). `alignment.py`
+   now imports it as `_fold_bearing`; the folding convention exists in exactly one place.
+
+3. **Heading uses the terminal-segment chord, not `np.polyfit`.** The chord
+   (first→last vertex of the last `terminal_length_m`) is independent of vertex density
+   and robust to near-vertical orientation, which is exactly what test (j) requires
+   (dense terminal curl must not override the straight approach). `np.polyfit` is both
+   density-biased and unstable for steep lines, so the chord is used instead. Same
+   axial-fold + weighted-circular-mean combination as specified.
+
+4. **Added `corridor_field_value()` and `data/crs.py:unproject_geometry()`** as the
+   single continuous-field function (so candidate scores and contours share one formula)
+   and the metric→WGS84 inverse used for contour export.
 
 ---
 

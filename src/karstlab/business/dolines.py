@@ -51,8 +51,7 @@ class DolineDetector:
             raise ValueError("original_dem and filled_dem must have the same shape")
 
         nodata_mask = _nodata_mask(original, nodata) | _nodata_mask(filled, nodata)
-        depth = np.maximum(filled - original, 0.0)
-        depth[nodata_mask] = 0.0
+        depth = depression_depth_raster(original, filled, nodata=nodata)
         candidate_mask = depth >= self.params.min_depth_m
 
         labels, count = ndimage.label(candidate_mask)
@@ -116,6 +115,25 @@ def _as_2d_float(array: np.ndarray, *, name: str) -> np.ndarray:
     if result.ndim != 2:
         raise ValueError(f"{name} must be a 2D array")
     return result
+
+
+def depression_depth_raster(
+    original: np.ndarray,
+    filled: np.ndarray,
+    *,
+    nodata: float | int | None = None,
+) -> NDArray[np.float64]:
+    """Return the fill-minus-original depression depth, clipped to >= 0.
+
+    Cells flagged as nodata in either the original or the filled DEM are set to
+    0.0 using the same NaN-aware masking the detector applies, so an exported
+    depth raster matches the depths used during doline detection.
+    """
+    original = _as_2d_float(original, name="original_dem")
+    filled = _as_2d_float(filled, name="filled_dem")
+    depth = np.maximum(filled - original, 0.0)
+    depth[_nodata_mask(original, nodata) | _nodata_mask(filled, nodata)] = 0.0
+    return cast(NDArray[np.float64], depth)
 
 
 def _nodata_mask(array: np.ndarray, nodata: float | int | None) -> np.ndarray:

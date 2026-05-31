@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import escape
 
 import rasterio
 from affine import Affine
+from rasterio.crs import CRS
+from rasterio.windows import Window
 
 
 @dataclass(frozen=True)
@@ -44,7 +47,11 @@ GDAL_DTYPE_BY_RASTERIO = {
 GRID_ALIGNMENT_TOLERANCE = 1e-6
 
 
-def assemble_vrt(tile_paths: list[Path], vrt_path: Path) -> VrtMosaic:
+def assemble_vrt(
+    tile_paths: list[Path],
+    vrt_path: Path,
+    fallback_crs: str | None = None,
+) -> VrtMosaic:
     if not tile_paths:
         raise ValueError("assemble_vrt requires at least one tile")
 
@@ -54,7 +61,15 @@ def assemble_vrt(tile_paths: list[Path], vrt_path: Path) -> VrtMosaic:
             datasets.append(rasterio.open(path))
 
         reference = datasets[0]
-        _validate_datasets(datasets)
+        _validate_datasets(datasets, has_fallback_crs=fallback_crs is not None)
+
+        # Resolve CRS: prefer dataset CRS, fall back to caller-supplied value.
+        if reference.crs is not None:
+            crs_wkt = reference.crs.to_wkt()
+        elif fallback_crs is not None:
+            crs_wkt = CRS.from_string(fallback_crs).to_wkt()
+        else:
+            raise ValueError(f"Tile has no CRS: {reference.name}")
 
         xres, yres = reference.res
         min_x = min(dataset.bounds.left for dataset in datasets)
@@ -89,7 +104,7 @@ def assemble_vrt(tile_paths: list[Path], vrt_path: Path) -> VrtMosaic:
             width=width,
             height=height,
             transform=transform,
-            crs_wkt=reference.crs.to_wkt(),
+            crs_wkt=crs_wkt,
             dtype=reference.dtypes[0],
             nodata=reference.nodata,
             tiles=tiles,
@@ -101,7 +116,10 @@ def assemble_vrt(tile_paths: list[Path], vrt_path: Path) -> VrtMosaic:
             dataset.close()
 
 
-def assemble_geotiff(vrt_path: Path, output_path: Path) -> Path:
+def assemble_geotiff(vrt_path: Path, output_path: Path, *, block_size: int = 4096) -> Path:
+    if block_size <= 0:
+        raise ValueError("block_size must be greater than zero")
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with rasterio.open(vrt_path) as source:
         profile = source.profile.copy()
@@ -111,15 +129,31 @@ def assemble_geotiff(vrt_path: Path, output_path: Path) -> Path:
         profile.pop("tiled", None)
         with rasterio.open(output_path, "w", **profile) as destination:
             for band in range(1, source.count + 1):
-                destination.write(source.read(band), band)
+                for window in _windows(source.width, source.height, block_size=block_size):
+                    destination.write(source.read(band, window=window), band, window=window)
     return output_path
 
 
-def _validate_datasets(datasets: list[rasterio.io.DatasetReader]) -> None:
+def _windows(width: int, height: int, *, block_size: int) -> Iterator[Window]:
+    for row_off in range(0, height, block_size):
+        for col_off in range(0, width, block_size):
+            yield Window(
+                col_off=col_off,
+                row_off=row_off,
+                width=min(block_size, width - col_off),
+                height=min(block_size, height - row_off),
+            )
+
+
+def _validate_datasets(
+    datasets: list[rasterio.io.DatasetReader],
+    *,
+    has_fallback_crs: bool = False,
+) -> None:
     reference = datasets[0]
     if reference.count != 1:
         raise ValueError("VRT assembly currently supports single-band DEM tiles only")
-    if reference.crs is None:
+    if reference.crs is None and not has_fallback_crs:
         raise ValueError(f"Tile has no CRS: {reference.name}")
     if reference.transform.b != 0 or reference.transform.d != 0:
         raise ValueError("VRT assembly requires north-up rasters without rotation")
@@ -127,6 +161,8 @@ def _validate_datasets(datasets: list[rasterio.io.DatasetReader]) -> None:
     for dataset in datasets[1:]:
         if dataset.count != reference.count:
             raise ValueError("All tiles must have the same band count")
+        # When tiles have no embedded CRS (e.g. ASC without .prj), all will be
+        # None — treat that as consistent; the caller supplies the fallback CRS.
         if dataset.crs != reference.crs:
             raise ValueError("All tiles must have the same CRS")
         if dataset.res != reference.res:

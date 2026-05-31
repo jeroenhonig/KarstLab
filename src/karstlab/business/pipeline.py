@@ -11,15 +11,20 @@ from typing import Any
 
 import geopandas as gpd
 import numpy as np
+import rasterio
 from pyproj import Transformer
 from rasterio.features import shapes
 from shapely.geometry import shape
 
 from karstlab.business.contours import extract_contours
 from karstlab.business.depression_ranker import rank_depressions
-from karstlab.business.dolines import DolineDetectionParams, detect_dolines
+from karstlab.business.dolines import (
+    DolineDetectionParams,
+    depression_depth_raster,
+    detect_dolines,
+)
 from karstlab.business.hydrology import HydrologyAnalyzer, HydrologyBackend
-from karstlab.business.terrain import curvature, hillshade, slope
+from karstlab.business.terrain import curvature, hillshade, multidirectional_hillshade, slope
 from karstlab.data.analysis_exports import (
     build_statistics,
     write_statistics,
@@ -35,7 +40,9 @@ from karstlab.data.schemas import (
     PipelineStatus,
     PipelineStepResult,
     ProjectFile,
+    UserSettings,
 )
+from karstlab.data.user_settings import load_user_settings
 from karstlab.data.vector_io import read_gpx_waypoints, read_kml_points, to_geojson, to_kml
 from karstlab.data.vrt_builder import assemble_geotiff, assemble_vrt
 from karstlab.presentation.map_builder import (
@@ -51,15 +58,17 @@ def run_headless_analysis(
     *,
     hydrology_backend: HydrologyBackend,
     callback: Callable[[str], None] | None = None,
+    user_settings: UserSettings | None = None,
 ) -> PipelineResult:
     """Run the headless DEM analysis pipeline for a project."""
     if not project.dem_paths:
         raise ValueError("project.dem_paths must contain at least one DEM path")
 
+    settings = user_settings or load_user_settings()
     started_at = datetime.now(UTC)
     steps: list[PipelineStepResult] = []
     paths = canonical_output_paths(project)
-    dem_path = _analysis_dem_path(project, paths, steps=steps)
+    dem_path = _analysis_dem_path(project, paths, steps=steps, user_settings=settings)
 
     original_dem = read_dem(dem_path)
     steps.append(
@@ -71,7 +80,11 @@ def run_headless_analysis(
                 "path": str(dem_path),
                 "width": original_dem.metadata.width,
                 "height": original_dem.metadata.height,
-                "crs": original_dem.metadata.crs.to_string(),
+                "crs": (
+                    original_dem.metadata.crs.to_string()
+                    if original_dem.metadata.crs
+                    else "unknown"
+                ),
             },
         )
     )
@@ -129,6 +142,19 @@ def run_headless_analysis(
 
     detection_started = datetime.now(UTC)
     filled_dem = read_dem(detection_filled_dem)
+    depression_depth = depression_depth_raster(
+        original_dem.array,
+        filled_dem.array,
+        nodata=original_dem.metadata.nodata,
+    )
+    depth_path = save_geotiff(
+        paths["depression_depth"],
+        depression_depth.astype("float32"),
+        crs=original_dem.metadata.crs,
+        transform=original_dem.metadata.transform,
+        nodata=None,
+        dtype="float32",
+    )
     depressions = detect_dolines(
         original_dem.array,
         filled_dem.array,
@@ -142,7 +168,7 @@ def run_headless_analysis(
         _completed_step(
             "doline_detection",
             started_at=detection_started,
-            output_paths=[],
+            output_paths=[depth_path],
             metadata={
                 "depression_count": len(depressions),
                 "top_depression_count": len(top_depressions),
@@ -294,28 +320,84 @@ def _analysis_dem_path(
     paths: dict[str, Path],
     *,
     steps: list[PipelineStepResult],
+    user_settings: UserSettings,
 ) -> Path:
-    if len(project.dem_paths) == 1:
+    fallback_crs = project.crs_analysis
+
+    if (
+        len(project.dem_paths) == 1
+        and not _needs_vrt_for_crs_fallback(project.dem_paths[0])
+        and not _single_tile_exceeds_large_dem_threshold(
+            project.dem_paths[0], user_settings=user_settings
+        )
+    ):
+        # Small GeoTIFF with embedded CRS — use directly, no VRT needed.
         return project.dem_paths[0]
 
     vrt_started = datetime.now(UTC)
     vrt_path = project.cache_dir / "assembled_dem.vrt"
-    mosaic = assemble_vrt(project.dem_paths, vrt_path)
-    assembled_dem = assemble_geotiff(mosaic.path, paths["assembled_dem"])
+    mosaic = assemble_vrt(project.dem_paths, vrt_path, fallback_crs=fallback_crs)
+    use_vrt_for_analysis = _mosaic_exceeds_large_dem_threshold(mosaic, user_settings=user_settings)
+    output_paths = [mosaic.path]
+    metadata = {
+        "tile_count": len(mosaic.tiles),
+        "width": mosaic.width,
+        "height": mosaic.height,
+        "analysis_dem_mode": "vrt" if use_vrt_for_analysis else "geotiff",
+    }
+    if use_vrt_for_analysis:
+        analysis_dem = mosaic.path
+    else:
+        analysis_dem = assemble_geotiff(mosaic.path, paths["assembled_dem"])
+        output_paths.append(analysis_dem)
+        metadata["assembled_dem"] = str(analysis_dem)
     steps.append(
         _completed_step(
             "vrt_assembly",
             started_at=vrt_started,
-            output_paths=[mosaic.path, assembled_dem],
-            metadata={
-                "tile_count": len(mosaic.tiles),
-                "width": mosaic.width,
-                "height": mosaic.height,
-                "assembled_dem": str(assembled_dem),
-            },
+            output_paths=output_paths,
+            metadata=metadata,
         )
     )
-    return assembled_dem
+    return analysis_dem
+
+
+def _needs_vrt_for_crs_fallback(dem_path: Path) -> bool:
+    try:
+        with rasterio.open(dem_path) as dataset:
+            return dataset.crs is None
+    except Exception:  # noqa: BLE001 - let VRT assembly report the detailed raster error later
+        return False
+
+
+def _single_tile_exceeds_large_dem_threshold(
+    dem_path: Path, *, user_settings: UserSettings
+) -> bool:
+    try:
+        with rasterio.open(dem_path) as dataset:
+            estimated = _estimated_raster_bytes(
+                width=dataset.width,
+                height=dataset.height,
+                count=1,
+                dtype=dataset.dtypes[0],
+            )
+    except Exception:  # noqa: BLE001 - let VRT assembly report the detailed raster error later
+        return False
+    return estimated > user_settings.large_dem_threshold_mb * 1024 * 1024
+
+
+def _mosaic_exceeds_large_dem_threshold(mosaic: Any, *, user_settings: UserSettings) -> bool:
+    threshold_bytes = user_settings.large_dem_threshold_mb * 1024 * 1024
+    return _estimated_raster_bytes(
+        width=mosaic.width,
+        height=mosaic.height,
+        count=1,
+        dtype=mosaic.dtype,
+    ) > threshold_bytes
+
+
+def _estimated_raster_bytes(*, width: int, height: int, count: int, dtype: str) -> int:
+    return width * height * count * np.dtype(dtype).itemsize
 
 
 def _write_terrain_derivatives(original_dem: Any, paths: dict[str, Path]) -> dict[str, Path]:
@@ -328,6 +410,7 @@ def _write_terrain_derivatives(original_dem: Any, paths: dict[str, Path]) -> dic
 
     derivatives = {
         "hillshade": hillshade(array, cell_size=transform),
+        "hillshade_multi": multidirectional_hillshade(array, cell_size=transform),
         "slope": slope(array, cell_size=transform),
         "curvature": curvature(array, cell_size=transform),
     }

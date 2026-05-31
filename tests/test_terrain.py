@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from affine import Affine
 
-from karstlab.business.terrain import curvature, hillshade, slope
+from karstlab.business.terrain import curvature, hillshade, multidirectional_hillshade, slope
 
 
 def test_hillshade_of_flat_surface_is_uniform() -> None:
@@ -15,6 +15,50 @@ def test_hillshade_of_flat_surface_is_uniform() -> None:
     assert shaded.shape == dem.shape
     assert np.allclose(shaded, shaded[0, 0])
     assert shaded[0, 0] == pytest.approx(180.312, abs=0.001)
+
+
+def test_multidirectional_hillshade_of_flat_surface_is_uniform() -> None:
+    dem = np.full((5, 5), 100.0, dtype=np.float64)
+
+    shaded = multidirectional_hillshade(dem, cell_size=Affine.scale(1.0, -1.0))
+
+    assert shaded.shape == dem.shape
+    assert shaded.dtype == np.float64
+    assert np.allclose(shaded, shaded[0, 0])
+
+
+def test_multidirectional_hillshade_matches_mean_of_eight_hillshades() -> None:
+    axis = np.arange(6, dtype=np.float64)
+    dem = np.add.outer(axis, axis * 2.0)
+    transform = Affine.scale(1.0, -1.0)
+
+    shaded = multidirectional_hillshade(dem, cell_size=transform)
+    expected = np.mean(
+        [
+            hillshade(dem, cell_size=transform, azimuth=azimuth, altitude=45.0)
+            for azimuth in (0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0)
+        ],
+        axis=0,
+    )
+
+    np.testing.assert_allclose(shaded, expected, atol=1e-5)
+
+
+def test_multidirectional_hillshade_respects_custom_azimuths() -> None:
+    axis = np.arange(6, dtype=np.float64)
+    dem = np.add.outer(axis, axis * 2.0)
+    transform = Affine.scale(1.0, -1.0)
+
+    shaded = multidirectional_hillshade(dem, cell_size=transform, azimuths_deg=(90.0, 180.0))
+    expected = np.mean(
+        [
+            hillshade(dem, cell_size=transform, azimuth=90.0, altitude=45.0),
+            hillshade(dem, cell_size=transform, azimuth=180.0, altitude=45.0),
+        ],
+        axis=0,
+    )
+
+    np.testing.assert_allclose(shaded, expected, atol=1e-5)
 
 
 def test_slope_of_tilted_plane_matches_expected_angle() -> None:

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
+import rasterio
 from rasterio.crs import CRS
 from rasterio.transform import from_origin
 
@@ -72,6 +75,70 @@ def test_assemble_geotiff_exports_vrt_to_tif(tmp_path) -> None:  # type: ignore[
 
     np.testing.assert_allclose(loaded.array, tile)
     assert loaded.metadata.crs == SYNTHETIC_DEM_CRS
+
+
+def test_assemble_vrt_uses_fallback_crs_for_crsless_tiles(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    tile = np.full((5, 5), 3.0, dtype=np.float32)
+    tile_path = save_geotiff(
+        tmp_path / "crsless.tif",
+        tile,
+        crs=None,
+        transform=from_origin(0.0, 5.0, 1.0, 1.0),
+        nodata=SYNTHETIC_DEM_NODATA,
+    )
+
+    vrt = assemble_vrt([tile_path], tmp_path / "fallback.vrt", fallback_crs="EPSG:2154")
+    loaded = read_dem(vrt.path)
+
+    assert loaded.metadata.crs == SYNTHETIC_DEM_CRS
+
+
+def test_assemble_geotiff_reads_vrt_by_windows(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:  # type: ignore[no-untyped-def]
+    tile = np.arange(64, dtype=np.float32).reshape((8, 8))
+    tile_path = save_geotiff(
+        tmp_path / "tile.tif",
+        tile,
+        crs=SYNTHETIC_DEM_CRS,
+        transform=from_origin(0.0, 8.0, 1.0, 1.0),
+        nodata=SYNTHETIC_DEM_NODATA,
+    )
+    vrt = assemble_vrt([tile_path], tmp_path / "single.vrt")
+    original_open = rasterio.open
+    source_reads: list[object] = []
+
+    class ReadSpy:
+        def __init__(self, dataset):  # type: ignore[no-untyped-def]
+            self._dataset = dataset
+
+        def __enter__(self):  # type: ignore[no-untyped-def]
+            self._dataset.__enter__()
+            return self
+
+        def __exit__(self, *args):  # type: ignore[no-untyped-def]
+            return self._dataset.__exit__(*args)
+
+        def __getattr__(self, name: str):  # type: ignore[no-untyped-def]
+            return getattr(self._dataset, name)
+
+        def read(self, band: int, *args, **kwargs):  # type: ignore[no-untyped-def]
+            source_reads.append(kwargs.get("window"))
+            return self._dataset.read(band, *args, **kwargs)
+
+    def open_spy(path, *args, **kwargs):  # type: ignore[no-untyped-def]
+        dataset = original_open(path, *args, **kwargs)
+        if Path(str(path)) == vrt.path:
+            return ReadSpy(dataset)
+        return dataset
+
+    monkeypatch.setattr(rasterio, "open", open_spy)
+
+    output = assemble_geotiff(vrt.path, tmp_path / "assembled.tif", block_size=4)
+
+    np.testing.assert_allclose(read_dem(output).array, tile)
+    assert len(source_reads) > 1
+    assert all(window is not None for window in source_reads)
 
 
 def test_assemble_vrt_rejects_empty_tile_list(tmp_path) -> None:  # type: ignore[no-untyped-def]

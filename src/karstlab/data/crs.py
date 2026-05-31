@@ -5,8 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import rasterio
+import shapely.geometry
+from pyproj import Transformer
 from rasterio.crs import CRS
 from rasterio.warp import Resampling, calculate_default_transform, reproject
+from shapely import ops
+
+from karstlab.data.schemas import DepressionResult
 
 
 def detect_crs(path: Path) -> CRS:
@@ -19,6 +24,57 @@ def detect_crs(path: Path) -> CRS:
 def is_metric_crs(crs: CRS | str) -> bool:
     resolved = CRS.from_user_input(crs)
     return bool(resolved.is_projected and resolved.linear_units_factor[0] == "metre")
+
+
+def project_centroids(
+    depressions: list[DepressionResult],
+    *,
+    crs: CRS | str,
+) -> list[tuple[float, float]]:
+    if not is_metric_crs(crs):
+        raise ValueError(f"crs is not metric: {crs}")
+    transformer = Transformer.from_crs("EPSG:4326", crs, always_xy=True)
+    return [
+        tuple(transformer.transform(depression.centroid.lon, depression.centroid.lat))
+        for depression in depressions
+    ]
+
+
+def project_geometry(
+    geometry: shapely.geometry.base.BaseGeometry,
+    *,
+    crs: CRS | str,
+) -> shapely.geometry.base.BaseGeometry:
+    if not is_metric_crs(crs):
+        raise ValueError(f"crs is not metric: {crs}")
+    transformer = Transformer.from_crs("EPSG:4326", crs, always_xy=True)
+    return ops.transform(transformer.transform, geometry)
+
+
+def unproject_geometry(
+    geometry: shapely.geometry.base.BaseGeometry,
+    *,
+    crs: CRS | str,
+) -> shapely.geometry.base.BaseGeometry:
+    """Reproject a shapely geometry from a metric CRS back to WGS84.
+
+    Inverse of :func:`project_geometry`; uses the identical transform
+    construction so a round-trip is guaranteed consistent.
+    """
+    if not is_metric_crs(crs):
+        raise ValueError(f"crs is not metric: {crs}")
+    transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+    return ops.transform(transformer.transform, geometry)
+
+
+def fold_bearing(bearing_deg: float) -> float:
+    """Fold a 0-360 directional bearing to a 0-180 axial direction.
+
+    Shared by ``business/alignment.py`` and ``business/conduit.py`` so the
+    folding convention lives in one place (``data/crs.py``) and neither
+    business module needs to import the other.
+    """
+    return float(bearing_deg % 180.0)
 
 
 def to_metric(
