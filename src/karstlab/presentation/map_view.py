@@ -44,6 +44,72 @@ _CLEAR_CLICK_JS = """
 })();
 """
 
+_DISTANCE_HANDLER_JS = """
+(function() {
+    if (window._kl_dist_active) return;
+    window._kl_dist_active = true;
+    window._kl_dist_p1 = null;
+    window._kl_dist_layers = [];
+    for (var k in window) {
+        try {
+            var m = window[k];
+            if (m && typeof m === 'object' && m._leaflet_id !== undefined
+                    && typeof m.on === 'function') {
+                window._kl_dist_map = m;
+                window._kl_dist_handler = function(e) {
+                    if (!window._kl_dist_p1) {
+                        window._kl_dist_p1 = e.latlng;
+                        window._kl_dist_marker = L.circleMarker(
+                            e.latlng, {radius: 5, color: '#f59e0b'}).addTo(m);
+                        window._kl_dist_layers.push(window._kl_dist_marker);
+                    } else {
+                        var d = m.distance(window._kl_dist_p1, e.latlng);
+                        var line = L.polyline(
+                            [window._kl_dist_p1, e.latlng],
+                            {color: '#f59e0b', dashArray: '6'}).addTo(m);
+                        window._kl_dist_layers.push(line);
+                        L.popup().setLatLng(e.latlng)
+                            .setContent('<b>' + (d >= 1000
+                                ? (d / 1000).toFixed(2) + ' km'
+                                : Math.round(d) + ' m') + '</b>')
+                            .openOn(m);
+                        window._kl_dist_p1 = null;
+                        if (window._kl_dist_marker) {
+                            window._kl_dist_marker.remove();
+                            window._kl_dist_marker = null;
+                        }
+                    }
+                };
+                m.on('click', window._kl_dist_handler);
+                break;
+            }
+        } catch (_) {}
+    }
+})();
+"""
+
+_CLEAR_DISTANCE_JS = """
+(function() {
+    var m = window._kl_dist_map;
+    if (m && window._kl_dist_handler) {
+        m.off('click', window._kl_dist_handler);
+    }
+    if (window._kl_dist_layers) {
+        window._kl_dist_layers.forEach(function(layer) {
+            try { layer.remove(); } catch (_) {}
+        });
+    }
+    if (window._kl_dist_marker) {
+        try { window._kl_dist_marker.remove(); } catch (_) {}
+    }
+    window._kl_dist_active = false;
+    window._kl_dist_p1 = null;
+    window._kl_dist_layers = [];
+    window._kl_dist_marker = null;
+    window._kl_dist_handler = null;
+})();
+"""
+
 
 class MapView(QWidget):
     """Map container using QWebEngineView when available, QTextBrowser otherwise."""
@@ -109,6 +175,14 @@ class MapView(QWidget):
     def clear_click_handler(self) -> None:
         if self._web_view is not None:
             self._web_view.page().runJavaScript(_CLEAR_CLICK_JS)
+
+    def start_distance_mode(self) -> None:
+        if self._web_view is not None:
+            self._web_view.page().runJavaScript(_DISTANCE_HANDLER_JS)
+
+    def clear_distance_mode(self) -> None:
+        if self._web_view is not None:
+            self._web_view.page().runJavaScript(_CLEAR_DISTANCE_JS)
 
     def set_empty_state(self) -> None:
         self.set_html(

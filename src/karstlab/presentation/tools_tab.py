@@ -35,6 +35,7 @@ class ToolsTab(QWidget):
     dem_path_changed = Signal(Path)
     tile_paths_changed = Signal(object)  # list[Path]
     project_dir_changed = Signal(Path)
+    distance_mode_toggled = Signal(bool)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -76,6 +77,13 @@ class ToolsTab(QWidget):
 
         params_group = self._create_parameters_group()
 
+        self._distance_button = QPushButton(self.tr("Measure distance"))
+        self._distance_button.setCheckable(True)
+        self._distance_button.toggled.connect(self.distance_mode_toggled.emit)
+        map_tools_group = QGroupBox(self.tr("Map tools"))
+        map_tools_layout = QVBoxLayout(map_tools_group)
+        map_tools_layout.addWidget(self._distance_button)
+
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
@@ -96,6 +104,7 @@ class ToolsTab(QWidget):
         layout.setSpacing(12)
         layout.addLayout(form_layout)
         layout.addWidget(params_group)
+        layout.addWidget(map_tools_group)
         layout.addWidget(self._progress_bar)
         layout.addWidget(self._analyze_button)
         layout.addWidget(self._cancel_button)
@@ -263,6 +272,11 @@ class ToolsTab(QWidget):
     def set_status(self, text: str) -> None:
         """Set the status label text."""
         self._status_label.setText(text)
+
+    def set_distance_mode(self, active: bool) -> None:
+        """Set the measure-distance toggle state programmatically."""
+        if self._distance_button.isChecked() != active:
+            self._distance_button.setChecked(active)
 
     def set_analyze_enabled(self, enabled: bool) -> None:
         """Enable or disable the analyze button."""

@@ -281,6 +281,7 @@ class MainWindow(QMainWindow):
                 self.tr("{0} tiles selected").format(len(paths))
             )
         )
+        self._tools_widget.distance_mode_toggled.connect(self._toggle_distance_mode)
         self._tools_widget.project_dir_changed.connect(
             lambda p: self._user_settings_update_project_dir(p)
         )
@@ -478,6 +479,8 @@ class MainWindow(QMainWindow):
             )
             return
 
+        self._tools_widget.set_distance_mode(False)
+        self.map_view.clear_distance_mode()
         self._tools_widget.set_analyze_enabled(False)
         self._tools_widget.set_cancel_enabled(True)
         self._tools_widget.set_progress(5)
@@ -583,6 +586,16 @@ class MainWindow(QMainWindow):
         else:
             self.map_view.clear_click_handler()
             self.statusBar().showMessage(self.tr("Placement mode off"))
+
+    def _toggle_distance_mode(self, active: bool) -> None:
+        if active:
+            self.map_view.start_distance_mode()
+            self.statusBar().showMessage(
+                self.tr("Click two points on the map to measure distance.")
+            )
+        else:
+            self.map_view.clear_distance_mode()
+            self.statusBar().showMessage(self.tr("Distance tool off"))
 
     def _on_map_marker_placed(self, lat: float, lon: float) -> None:
         self._markers_widget.set_gps_coordinate(lat, lon)

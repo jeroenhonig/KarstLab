@@ -17,7 +17,7 @@ semantics without explicit override from the architect.**
 | E | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Doline alignment rosettes; `make check` passed |
 | F | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Conduit prediction corridor; 20 tests; `make check` passed. See Plan F deviations below. |
 | H | implemented — ready for review | `codex/plan-g-scalability` | Backtest validation; 8 tests; `make check` passed. See Plan H deviations below. |
-| I | pending | — | Distance measurement (S) |
+| I | implemented — ready for review | `codex/plan-g-scalability` | Distance measurement; client-side Leaflet JS; 3 tests; `make check` passed |
 | J | pending | — | BRGM Cavités overlay (M) |
 | K | pending | — | Extra basemaps + WMS (M) |
 | L | pending | — | Altimetric profile (M-L) |
@@ -1199,9 +1199,11 @@ def clear_distance_mode(self) -> None: ...   # resets _kl_dist_active, removes l
 `clear_distance_mode()`. Also call `clear_distance_mode()` on analysis start.
 
 **Definition of done:**
-- [ ] Click 1 places yellow dot, click 2 shows polyline + popup with distance
-- [ ] Toggle off removes line and resets state
-- [ ] `make test` passes
+- [x] Click 1 places yellow dot, click 2 shows polyline + popup with distance
+      (`_DISTANCE_HANDLER_JS` via `MapView.start_distance_mode()`)
+- [x] Toggle off removes line and resets state (`_CLEAR_DISTANCE_JS` via
+      `clear_distance_mode()`; also cleared on analysis start)
+- [x] `make test` passes (`make check` green; `tests/test_distance_tool.py`)
 
 ---
 
