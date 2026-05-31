@@ -250,6 +250,23 @@ def test_wms_layers_render_in_html() -> None:
     assert "BRGM" in html
 
 
+def test_wms_layer_is_semi_transparent_by_default() -> None:
+    # WMS overlays must never fully obscure the basemap/results when toggled on.
+    html = render_top_depressions_map_html(
+        [depression("d-1", rank=1, lat=44.10, lon=1.20)],
+        wms_layers=[
+            WmsLayerSpec(
+                name="Geol",
+                url="https://example.test/wms",
+                layers="0",
+                attribution="x",
+                opacity=0.5,
+            )
+        ],
+    )
+    assert '"opacity": 0.5' in html
+
+
 def test_tile_layers_are_basemaps_wms_are_overlays() -> None:
     folium_map = build_top_depressions_map(
         [depression("d-1", rank=1, lat=44.10, lon=1.20)],

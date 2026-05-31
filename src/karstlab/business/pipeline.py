@@ -622,6 +622,7 @@ def _profile_wms_layers(profile: LandProfile | None) -> list[WmsLayerSpec]:
             url=str(layer.url),
             layers=layer.layer or "",
             attribution=layer.attribution or "",
+            opacity=layer.opacity if layer.opacity is not None else 0.6,
         )
         for layer in profile.map_layers.overlays
         if layer.type == LayerType.WMS and layer.layer

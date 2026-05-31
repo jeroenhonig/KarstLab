@@ -68,6 +68,7 @@ class WmsLayerSpec:
     transparent: bool = True
     version: str = "1.3.0"
     show: bool = False
+    opacity: float = 0.6  # semi-transparent so it never fully hides the basemap/results
 
 
 MapLayerInput = MapLayerSpec | Sequence[MapLayerSpec] | GeoJsonLike | None
@@ -192,6 +193,7 @@ def _add_wms_overlays(folium_map: folium.Map, specs: Sequence[WmsLayerSpec]) -> 
             show=spec.show,
             overlay=True,
             control=True,
+            opacity=spec.opacity,
         ).add_to(folium_map)
 
 
