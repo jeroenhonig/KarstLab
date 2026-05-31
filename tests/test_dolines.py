@@ -191,3 +191,27 @@ def test_detect_dolines_accepts_single_pixel_component() -> None:
     assert len(depressions) == 1
     assert depressions[0].area_m2 == 1.0
     assert depressions[0].quality_flags.shape_regularity == 1.0
+
+
+def test_doline_geometry_follows_true_outline_not_bbox() -> None:
+    # An L-shaped depression must produce a polygon that traces the shape, not
+    # its bounding rectangle (which would have exactly 5 vertices).
+    original = np.full((30, 30), 250.0, dtype=np.float64)
+    filled = original.copy()
+    mask = np.zeros((30, 30), dtype=bool)
+    mask[5:20, 5:9] = True
+    mask[16:20, 5:18] = True
+    original[mask] -= 3.0
+
+    depressions = detect_dolines(
+        original,
+        filled,
+        transform=SYNTHETIC_DEM_TRANSFORM,
+        crs=SYNTHETIC_DEM_CRS,
+        params=DolineDetectionParams(min_depth_m=0.5, min_area_m2=1.0, max_area_m2=1.0e6),
+    )
+
+    assert len(depressions) == 1
+    ring = depressions[0].geometry["coordinates"][0]
+    assert depressions[0].geometry["type"] == "Polygon"
+    assert len(ring) > 5  # more than a 4-corner bounding box

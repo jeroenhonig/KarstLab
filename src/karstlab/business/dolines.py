@@ -6,11 +6,14 @@ from dataclasses import dataclass
 from typing import cast
 
 import numpy as np
+import shapely.geometry as sgeom
 from affine import Affine
 from numpy.typing import NDArray
 from pyproj import Transformer
 from rasterio.crs import CRS
+from rasterio.features import shapes as _raster_shapes
 from scipy import ndimage
+from shapely.geometry.base import BaseGeometry
 
 from karstlab.data.schemas import (
     Coordinate,
@@ -73,7 +76,7 @@ class DolineDetector:
                     max_depth_m=max_depth,
                     area_m2=area,
                     centroid=centroid,
-                    geometry=_component_polygon(rows, cols, transform, transformer=transformer),
+                    geometry=_component_polygon(component, transform, transformer=transformer),
                     quality_flags=DepressionQualityFlags(
                         edge_proximity=_touches_edge(component, self.params.edge_buffer_cells),
                         nodata_adjacent=_adjacent_to_nodata(component, nodata_mask),
@@ -158,16 +161,62 @@ def _centroid(
 
 
 def _component_polygon(
-    rows: np.ndarray,
-    cols: np.ndarray,
+    component: np.ndarray,
     transform: Affine,
     *,
     transformer: Transformer | None,
 ) -> dict[str, object]:
-    min_row = int(np.min(rows))
-    max_row = int(np.max(rows)) + 1
-    min_col = int(np.min(cols))
-    max_col = int(np.max(cols)) + 1
+    """Vectorise the true outline of a depression component (not its bbox).
+
+    Uses ``rasterio.features.shapes`` on the component mask (cropped to its
+    bounding box for speed), keeps the largest ring set, lightly simplifies the
+    pixel staircase, and reprojects vertices to WGS84.
+    """
+    rows, cols = np.where(component)
+    min_row, max_row = int(np.min(rows)), int(np.max(rows)) + 1
+    min_col, max_col = int(np.min(cols)), int(np.max(cols)) + 1
+    sub = np.ascontiguousarray(component[min_row:max_row, min_col:max_col].astype(np.uint8))
+    sub_transform = transform * Affine.translation(min_col, min_row)
+
+    polygons = [
+        sgeom.shape(geom)
+        for geom, value in _raster_shapes(sub, mask=sub.astype(bool), transform=sub_transform)
+        if value == 1
+    ]
+    if not polygons:
+        return _bbox_polygon(min_row, max_row, min_col, max_col, transform, transformer)
+
+    polygon: BaseGeometry = max(polygons, key=lambda geometry: geometry.area)
+    tolerance = abs(float(transform.a))  # ~one pixel: smooth the staircase, keep shape
+    simplified = polygon.simplify(tolerance, preserve_topology=True)
+    if not simplified.is_empty and simplified.geom_type in {"Polygon", "MultiPolygon"}:
+        polygon = simplified
+    if polygon.geom_type == "MultiPolygon":
+        polygon = max(polygon.geoms, key=lambda geometry: geometry.area)
+
+    return _reproject_polygon(sgeom.mapping(polygon), transformer=transformer)
+
+
+def _reproject_polygon(
+    geometry: dict[str, object],
+    *,
+    transformer: Transformer | None,
+) -> dict[str, object]:
+    rings = cast("list[list[tuple[float, float]]]", geometry["coordinates"])
+    reprojected = [
+        [list(_to_wgs84((x, y), transformer=transformer)) for x, y in ring] for ring in rings
+    ]
+    return {"type": "Polygon", "coordinates": reprojected}
+
+
+def _bbox_polygon(
+    min_row: int,
+    max_row: int,
+    min_col: int,
+    max_col: int,
+    transform: Affine,
+    transformer: Transformer | None,
+) -> dict[str, object]:
     top_left = _to_wgs84(transform * (min_col, min_row), transformer=transformer)
     top_right = _to_wgs84(transform * (max_col, min_row), transformer=transformer)
     bottom_right = _to_wgs84(transform * (max_col, max_row), transformer=transformer)
