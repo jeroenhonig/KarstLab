@@ -123,8 +123,7 @@ def _build_geojson(tiles: dict[str, Path]) -> dict[str, Any]:
 # ── Leaflet HTML ─────────────────────────────────────────────────────────────
 _MAP_HTML_TMPL = """\
 <!DOCTYPE html><html><head><meta charset="utf-8"/>
-<link rel="stylesheet" href="LEAFLET_CSS_PLACEHOLDER"/>
-<script src="LEAFLET_JS_PLACEHOLDER"></script>
+HEAD_ASSETS_PLACEHOLDER
 <style>
 html,body{margin:0;padding:0;height:100%}
 #map{width:100%;height:100vh;background:#e5e7eb}
@@ -161,29 +160,35 @@ window.applyClearAll=function(){
 </script></body></html>"""
 
 
-def _leaflet_asset_urls() -> tuple[str, str]:
-    """Return (css_url, js_url) for the vendored Leaflet assets.
+_LEAFLET_DIR = Path(__file__).resolve().parent.parent / "resources" / "leaflet"
 
-    Local files keep the picker working offline / behind CDN-blocking networks;
-    falls back to the unpkg CDN if the vendored copy is missing.
+
+def _head_assets() -> str:
+    """Inline the vendored Leaflet css+js into the page <head>.
+
+    Inlining (rather than file:// links) is what makes the picker robust: the
+    HTML is loaded via ``setHtml`` with an https base URL so the OSM basemap
+    tiles load, and an https-origin page cannot pull file:// subresources — so
+    the Leaflet library must be embedded directly. Falls back to the unpkg CDN
+    if the vendored copy is missing.
     """
-    asset_dir = Path(__file__).resolve().parent.parent / "resources" / "leaflet"
-    css = asset_dir / "leaflet.css"
-    js = asset_dir / "leaflet.js"
+    css = _LEAFLET_DIR / "leaflet.css"
+    js = _LEAFLET_DIR / "leaflet.js"
     if css.is_file() and js.is_file():
-        return (QUrl.fromLocalFile(str(css)).toString(), QUrl.fromLocalFile(str(js)).toString())
+        return (
+            f"<style>{css.read_text(encoding='utf-8')}</style>"
+            f"<script>{js.read_text(encoding='utf-8')}</script>"
+        )
     return (
-        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+        '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>'
+        '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>'
     )
 
 
 def _render_html(geojson: dict[str, Any], center_lat: float, center_lon: float, zoom: int) -> str:
-    css_url, js_url = _leaflet_asset_urls()
     return (
-        _MAP_HTML_TMPL.replace("GEOJSON_PLACEHOLDER", json.dumps(geojson))
-        .replace("LEAFLET_CSS_PLACEHOLDER", css_url)
-        .replace("LEAFLET_JS_PLACEHOLDER", js_url)
+        _MAP_HTML_TMPL.replace("HEAD_ASSETS_PLACEHOLDER", _head_assets())
+        .replace("GEOJSON_PLACEHOLDER", json.dumps(geojson))
         .replace("LAT_PLACEHOLDER", str(round(center_lat, 5)))
         .replace("LON_PLACEHOLDER", str(round(center_lon, 5)))
         .replace("ZOOM_PLACEHOLDER", str(zoom))
@@ -337,17 +342,25 @@ class TilePickerDialog(QDialog):
 
         html = _render_html(geojson, center_lat, center_lon, zoom)
 
-        # Write to temp file to avoid QWebEngineView setHtml size limits
-        if self._html_tmp is not None:
-            with suppress(Exception):
-                self._html_tmp.unlink(missing_ok=True)
-        with tempfile.NamedTemporaryFile(
-            suffix=".html", delete=False, mode="w", encoding="utf-8"
-        ) as tmp:
-            tmp.write(html)
-            self._html_tmp = Path(tmp.name)
         web_view = self._web_view
-        if web_view is not None and hasattr(web_view, "setUrl"):
+        if web_view is None:
+            return
+        # Load with an https base URL so the remote OSM basemap tiles are allowed
+        # (a file:// origin blocks remote sub-resources). Leaflet itself is inlined
+        # in the HTML, so it still renders offline; only the basemap needs network.
+        # setHtml caps content at ~2 MB; fall back to a temp file for very large
+        # tile sets (footprints still render, basemap stays grey).
+        if len(html.encode("utf-8")) < 1_800_000 and hasattr(web_view, "setHtml"):
+            web_view.setHtml(html, QUrl("https://karstlab.local/"))
+        elif hasattr(web_view, "setUrl"):
+            if self._html_tmp is not None:
+                with suppress(Exception):
+                    self._html_tmp.unlink(missing_ok=True)
+            with tempfile.NamedTemporaryFile(
+                suffix=".html", delete=False, mode="w", encoding="utf-8"
+            ) as tmp:
+                tmp.write(html)
+                self._html_tmp = Path(tmp.name)
             web_view.setUrl(QUrl.fromLocalFile(str(self._html_tmp)))
 
     # ── Selection management ──────────────────────────────────────────────────

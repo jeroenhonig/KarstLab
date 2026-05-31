@@ -5,8 +5,8 @@ from pathlib import Path
 from karstlab.presentation.tile_picker_dialog import (
     _bounds_l93,
     _build_geojson,
+    _head_assets,
     _l93_to_wgs84,
-    _leaflet_asset_urls,
     _render_html,
 )
 
@@ -24,15 +24,22 @@ def test_leaflet_assets_are_vendored() -> None:
     assert (_LEAFLET_DIR / "leaflet.css").is_file()
 
 
-def test_render_html_references_local_leaflet_not_cdn() -> None:
-    css_url, js_url = _leaflet_asset_urls()
-    assert css_url.startswith("file://")
-    assert js_url.startswith("file://")
+def test_head_assets_inline_vendored_leaflet_not_cdn() -> None:
+    head = _head_assets()
+    # Leaflet inlined (offline-safe) — no external CDN script/link tags.
+    assert "unpkg.com" not in head
+    assert "leaflet" in head.lower()
+    assert "<script>" in head
 
-    html = _render_html(_build_geojson({"0900_6700": Path("/x/a.asc")}), 47.2, 6.3, 10)
-    # Leaflet library served locally (offline-safe); only the OSM basemap stays remote.
+
+def test_render_html_inlines_leaflet_and_stays_under_sethtml_limit() -> None:
+    geojson = _build_geojson(
+        {f"{900 + i % 40:04d}_{6700 + i // 40:04d}": Path(f"/x/{i}.asc") for i in range(4240)}
+    )
+    html = _render_html(geojson, 47.2, 6.3, 10)
     assert "unpkg.com" not in html
-    assert "file://" in html
+    # Inlined Leaflet + 4240 footprints must fit the QWebEngineView setHtml budget.
+    assert len(html.encode("utf-8")) < 1_800_000
 
 
 def test_l93_inverse_places_doubs_tile_in_france() -> None:
