@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 
 from karstlab.business.marker_manager import poi_records_to_geodataframe
 from karstlab.data.poi import FRENCH_DEPARTMENTS, fetch_poi
-from karstlab.data.vector_io import read_gpx_waypoints, read_kml_points, to_gpx
+from karstlab.data.vector_io import read_gpx_waypoints, read_kml_geometries, to_gpx
 
 
 class PoiFetchWorker(QObject):
@@ -337,7 +337,9 @@ class MarkersTab(QWidget):
         if suffix == "gpx":
             return read_gpx_waypoints(path)
         if suffix == "kml":
-            return read_kml_points(path)
+            # Accept any KML geometry (points, lines, polygon cave surveys),
+            # not just Point placemarks.
+            return read_kml_geometries(path)
         raise ValueError(f"Unsupported marker format: {suffix}")
 
     def _marker_list_label(self, path: Path, markers: Any) -> str:

@@ -43,7 +43,12 @@ from karstlab.data.schemas import (
     UserSettings,
 )
 from karstlab.data.user_settings import load_user_settings
-from karstlab.data.vector_io import read_gpx_waypoints, read_kml_points, to_geojson, to_kml
+from karstlab.data.vector_io import (
+    read_gpx_waypoints,
+    read_kml_geometries,
+    to_geojson,
+    to_kml,
+)
 from karstlab.data.vrt_builder import assemble_geotiff, assemble_vrt
 from karstlab.presentation.map_builder import (
     ImageLayerSpec,
@@ -536,7 +541,7 @@ def _imported_marker_layers(project: ProjectFile) -> list[MapLayerSpec]:
             if suffix == ".gpx":
                 markers = read_gpx_waypoints(marker_path)
             elif suffix == ".kml":
-                markers = read_kml_points(marker_path)
+                markers = read_kml_geometries(marker_path)
             else:
                 continue
         except Exception:  # noqa: BLE001 - skip unreadable marker files silently

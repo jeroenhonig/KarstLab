@@ -179,6 +179,28 @@ def read_kml_lines(path: Path) -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(records, geometry="geometry", crs=WGS84_CRS)
 
 
+def read_kml_geometries(path: Path) -> gpd.GeoDataFrame:
+    """Read all KML geometries (Point, LineString, Polygon) into WGS84.
+
+    Handles geometries nested in ``<MultiGeometry>`` and is namespace-agnostic
+    (matches local element names), so it tolerates the malformed namespace
+    declarations some exporters emit. One row per geometry; the row ``name`` is
+    the parent Placemark name. Raises ValueError if no geometry is found.
+    """
+    root = ET.parse(path).getroot()
+    records: list[dict[str, Any]] = []
+    for placemark in _iter_local(root, "Placemark"):
+        name = _local_text(placemark, "name")
+        for element in placemark.iter():
+            geometry = _kml_element_geometry(element)
+            if geometry is not None:
+                records.append({"name": name, "geometry": geometry})
+
+    if not records:
+        raise ValueError("No KML geometries found")
+    return gpd.GeoDataFrame(records, geometry="geometry", crs=WGS84_CRS)
+
+
 def survey_line_geometry(
     gdf: gpd.GeoDataFrame,
     *,
@@ -228,6 +250,44 @@ def _parse_kml_coordinates(coordinates: str) -> list[tuple[float, float]]:
         lon, lat, *_ = [float(value) for value in coordinate.split(",")]
         parsed.append((lon, lat))
     return parsed
+
+
+def _local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def _iter_local(element: ET.Element, name: str) -> list[ET.Element]:
+    return [child for child in element.iter() if _local_name(child.tag) == name]
+
+
+def _local_text(element: ET.Element, name: str) -> str | None:
+    for child in element.iter():
+        if _local_name(child.tag) == name and child.text:
+            return child.text.strip()
+    return None
+
+
+def _first_coordinates_text(element: ET.Element) -> str | None:
+    for child in element.iter():
+        if _local_name(child.tag) == "coordinates" and child.text:
+            return child.text
+    return None
+
+
+def _kml_element_geometry(element: ET.Element) -> Any:
+    """Build a shapely geometry from a Point/LineString/Polygon KML element."""
+    geometry_type = _local_name(element.tag)
+    if geometry_type not in {"Point", "LineString", "Polygon"}:
+        return None
+    coordinates_text = _first_coordinates_text(element)
+    if not coordinates_text:
+        return None
+    coordinates = _parse_kml_coordinates(coordinates_text)
+    if geometry_type == "Point":
+        return Point(coordinates[0]) if coordinates else None
+    if geometry_type == "LineString":
+        return LineString(coordinates) if len(coordinates) >= 2 else None
+    return Polygon(coordinates) if len(coordinates) >= 3 else None
 
 
 def _metric_lines(gdf: gpd.GeoDataFrame) -> list[LineString]:

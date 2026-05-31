@@ -258,3 +258,77 @@ def test_survey_line_geometry_rejects_disconnected_segments() -> None:
 
     with pytest.raises(ValueError, match="connected"):
         survey_line_geometry(frame)
+
+
+def test_read_kml_geometries_parses_multigeometry_polygons(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "cave.kml"
+    path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document>
+  <Placemark><name>Fourbanne</name>
+    <MultiGeometry>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>
+        6.3018,47.3331 6.3018,47.3332 6.3019,47.3332 6.3018,47.3331
+      </coordinates></LinearRing></outerBoundaryIs></Polygon>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>
+        6.3020,47.3333 6.3020,47.3334 6.3021,47.3334 6.3020,47.3333
+      </coordinates></LinearRing></outerBoundaryIs></Polygon>
+    </MultiGeometry>
+  </Placemark>
+</Document></kml>
+""",
+        encoding="utf-8",
+    )
+
+    from karstlab.data.vector_io import read_kml_geometries
+
+    loaded = read_kml_geometries(path)
+    assert len(loaded) == 2
+    assert set(loaded.geometry.geom_type) == {"Polygon"}
+    assert loaded["name"].to_list() == ["Fourbanne", "Fourbanne"]
+    assert loaded.crs == "EPSG:4326"
+
+
+def test_read_kml_geometries_is_namespace_agnostic(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    # Malformed namespace declaration (as emitted by some exporters).
+    path = tmp_path / "weird_ns.kml"
+    path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="xmlns='http://earth.google.com/kml/2.0'"><Document>
+  <Placemark><name>P</name>
+    <LineString><coordinates>6.30,47.33 6.31,47.34</coordinates></LineString>
+  </Placemark>
+</Document></kml>
+""",
+        encoding="utf-8",
+    )
+
+    from karstlab.data.vector_io import read_kml_geometries
+
+    loaded = read_kml_geometries(path)
+    assert len(loaded) == 1
+    assert loaded.geometry.iloc[0].geom_type == "LineString"
+
+
+def test_read_kml_geometries_mixed_types_and_empty(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from karstlab.data.vector_io import read_kml_geometries
+
+    path = tmp_path / "mixed.kml"
+    path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document>
+  <Placemark><name>pt</name><Point><coordinates>6.3,47.3</coordinates></Point></Placemark>
+</Document></kml>
+""",
+        encoding="utf-8",
+    )
+    loaded = read_kml_geometries(path)
+    assert loaded.geometry.iloc[0].geom_type == "Point"
+
+    empty = tmp_path / "empty.kml"
+    empty.write_text(
+        '<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document/></kml>',
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="No KML geometries"):
+        read_kml_geometries(empty)
