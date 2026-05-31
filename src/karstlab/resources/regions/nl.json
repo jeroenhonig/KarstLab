@@ -7,7 +7,17 @@
     "fr": "Pays-Bas"
   },
   "default_crs": "EPSG:28992",
-  "common_crs": ["EPSG:28992", "EPSG:32631", "EPSG:32632"],
+  "common_crs": [
+    "EPSG:28992",
+    "EPSG:32631",
+    "EPSG:32632"
+  ],
+  "bbox_wgs84": [
+    3.2,
+    50.7,
+    7.4,
+    53.7
+  ],
   "dem_sources": [
     {
       "name": "AHN4",

@@ -7,7 +7,17 @@
     "fr": "France"
   },
   "default_crs": "EPSG:2154",
-  "common_crs": ["EPSG:2154", "EPSG:32631", "EPSG:32632"],
+  "common_crs": [
+    "EPSG:2154",
+    "EPSG:32631",
+    "EPSG:32632"
+  ],
+  "bbox_wgs84": [
+    -5.5,
+    41.0,
+    9.8,
+    51.5
+  ],
   "dem_sources": [
     {
       "name": "IGN LiDAR HD MNT",

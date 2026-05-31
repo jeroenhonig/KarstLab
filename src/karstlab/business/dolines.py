@@ -58,17 +58,32 @@ class DolineDetector:
         candidate_mask = depth >= self.params.min_depth_m
 
         labels, count = ndimage.label(candidate_mask)
+        if count == 0:
+            return []
+        # ``find_objects`` returns the tight bounding-box slice for every label so
+        # each component is processed on its small sub-array instead of scanning
+        # the full raster once per label (the old O(labels x pixels) loop).
+        slices = ndimage.find_objects(labels)
         pixel_area = abs((transform.a * transform.e) - (transform.b * transform.d))
         transformer = _wgs84_transformer(crs)
+        has_nodata = bool(np.any(nodata_mask))
+        full_shape = labels.shape
         depressions: list[DepressionResult] = []
-        for label_id in range(1, count + 1):
-            component = labels == label_id
-            max_depth = float(np.max(depth[component]))
-            area = float(np.count_nonzero(component) * pixel_area)
+        for label_id, bounds in enumerate(slices, start=1):
+            if bounds is None:
+                continue
+            row_offset = bounds[0].start
+            col_offset = bounds[1].start
+            sub_component = labels[bounds] == label_id
+            sub_depth = depth[bounds]
+            max_depth = float(np.max(sub_depth[sub_component]))
+            area = float(np.count_nonzero(sub_component) * pixel_area)
             if not self._passes_filters(max_depth=max_depth, area=area):
                 continue
 
-            rows, cols = np.where(component)
+            rows_local, cols_local = np.where(sub_component)
+            rows = rows_local + row_offset
+            cols = cols_local + col_offset
             centroid = _centroid(rows, cols, transform, transformer=transformer)
             depressions.append(
                 DepressionResult(
@@ -76,12 +91,22 @@ class DolineDetector:
                     max_depth_m=max_depth,
                     area_m2=area,
                     centroid=centroid,
-                    geometry=_component_polygon(component, transform, transformer=transformer),
+                    geometry=_component_polygon(
+                        sub_component,
+                        transform,
+                        transformer=transformer,
+                        row_offset=row_offset,
+                        col_offset=col_offset,
+                    ),
                     quality_flags=DepressionQualityFlags(
-                        edge_proximity=_touches_edge(component, self.params.edge_buffer_cells),
-                        nodata_adjacent=_adjacent_to_nodata(component, nodata_mask),
+                        edge_proximity=_touches_edge_bounds(
+                            rows, cols, full_shape, self.params.edge_buffer_cells
+                        ),
+                        nodata_adjacent=_adjacent_to_nodata(
+                            sub_component, row_offset, col_offset, nodata_mask, has_nodata
+                        ),
                         depth_confidence=_depth_confidence(max_depth),
-                        shape_regularity=_shape_regularity(component),
+                        shape_regularity=_shape_regularity(sub_component),
                         nested=False,
                     ),
                 )
@@ -165,18 +190,22 @@ def _component_polygon(
     transform: Affine,
     *,
     transformer: Transformer | None,
+    row_offset: int = 0,
+    col_offset: int = 0,
 ) -> dict[str, object]:
     """Vectorise the true outline of a depression component (not its bbox).
 
     Uses ``rasterio.features.shapes`` on the component mask (cropped to its
     bounding box for speed), keeps the largest ring set, lightly simplifies the
-    pixel staircase, and reprojects vertices to WGS84.
+    pixel staircase, and reprojects vertices to WGS84. ``row_offset``/``col_offset``
+    map the local ``(0, 0)`` of ``component`` back to its global pixel position
+    when the mask is a bounding-box sub-array of the full raster.
     """
     rows, cols = np.where(component)
     min_row, max_row = int(np.min(rows)), int(np.max(rows)) + 1
     min_col, max_col = int(np.min(cols)), int(np.max(cols)) + 1
     sub = np.ascontiguousarray(component[min_row:max_row, min_col:max_col].astype(np.uint8))
-    sub_transform = transform * Affine.translation(min_col, min_row)
+    sub_transform = transform * Affine.translation(col_offset + min_col, row_offset + min_row)
 
     polygons = [
         sgeom.shape(geom)
@@ -184,7 +213,14 @@ def _component_polygon(
         if value == 1
     ]
     if not polygons:
-        return _bbox_polygon(min_row, max_row, min_col, max_col, transform, transformer)
+        return _bbox_polygon(
+            row_offset + min_row,
+            row_offset + max_row,
+            col_offset + min_col,
+            col_offset + max_col,
+            transform,
+            transformer,
+        )
 
     polygon: BaseGeometry = max(polygons, key=lambda geometry: geometry.area)
     tolerance = abs(float(transform.a))  # ~one pixel: smooth the staircase, keep shape
@@ -227,10 +263,15 @@ def _bbox_polygon(
     }
 
 
-def _touches_edge(mask: np.ndarray, edge_buffer_cells: int) -> bool:
-    rows, cols = np.where(mask)
-    max_row = mask.shape[0] - 1
-    max_col = mask.shape[1] - 1
+def _touches_edge_bounds(
+    rows: np.ndarray,
+    cols: np.ndarray,
+    full_shape: tuple[int, int],
+    edge_buffer_cells: int,
+) -> bool:
+    """Edge proximity from a component's global row/col indices and raster shape."""
+    max_row = full_shape[0] - 1
+    max_col = full_shape[1] - 1
     return bool(
         np.min(rows) <= edge_buffer_cells
         or np.min(cols) <= edge_buffer_cells
@@ -239,12 +280,36 @@ def _touches_edge(mask: np.ndarray, edge_buffer_cells: int) -> bool:
     )
 
 
-def _adjacent_to_nodata(component: np.ndarray, nodata_mask: np.ndarray) -> bool:
-    if not np.any(nodata_mask):
+def _adjacent_to_nodata(
+    sub_component: np.ndarray,
+    row_offset: int,
+    col_offset: int,
+    nodata_mask: np.ndarray,
+    has_nodata: bool,
+) -> bool:
+    """Test nodata adjacency by dilating the component within a 1-cell padded window.
+
+    Operates on a small region around the component's bounding box rather than
+    dilating the full raster, while still reaching the one-cell border that may
+    fall outside the tight bounding box.
+    """
+    if not has_nodata:
         return False
-    expanded = ndimage.binary_dilation(component, structure=np.ones((3, 3), dtype=bool))
-    border = expanded & ~component
-    return bool(np.any(border & nodata_mask))
+    height, width = sub_component.shape
+    full_rows, full_cols = nodata_mask.shape
+    row_start = max(row_offset - 1, 0)
+    col_start = max(col_offset - 1, 0)
+    row_stop = min(row_offset + height + 1, full_rows)
+    col_stop = min(col_offset + width + 1, full_cols)
+
+    region = np.zeros((row_stop - row_start, col_stop - col_start), dtype=bool)
+    region[
+        row_offset - row_start : row_offset - row_start + height,
+        col_offset - col_start : col_offset - col_start + width,
+    ] = sub_component
+    expanded = ndimage.binary_dilation(region, structure=np.ones((3, 3), dtype=bool))
+    border = expanded & ~region
+    return bool(np.any(border & nodata_mask[row_start:row_stop, col_start:col_stop]))
 
 
 def _depth_confidence(max_depth: float) -> DepthConfidence:

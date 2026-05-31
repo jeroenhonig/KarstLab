@@ -160,6 +160,9 @@ class LandProfile(StrictModel):
     name: LocalizedText
     default_crs: str = Field(pattern=r"^EPSG:\d+$")
     common_crs: list[str] = Field(min_length=1)
+    # Approximate WGS84 extent [min_lon, min_lat, max_lon, max_lat] used to
+    # auto-detect the region from DEM tile location. None = no geographic match.
+    bbox_wgs84: tuple[float, float, float, float] | None = None
     dem_sources: list[DemSource] = Field(default_factory=list)
     map_layers: MapLayers
     poi_sources: list[PoiSource] = Field(default_factory=list)

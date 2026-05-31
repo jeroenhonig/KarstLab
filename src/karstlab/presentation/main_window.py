@@ -331,11 +331,13 @@ class MainWindow(QMainWindow):
         self._tools_widget.dem_path_changed.connect(
             lambda p: self.statusBar().showMessage(f"DEM selected: {p.name}")
         )
+        self._tools_widget.dem_path_changed.connect(lambda p: self._autodetect_profile([p]))
         self._tools_widget.tile_paths_changed.connect(
             lambda paths: self.statusBar().showMessage(
                 self.tr("{0} tiles selected").format(len(paths))
             )
         )
+        self._tools_widget.tile_paths_changed.connect(self._autodetect_profile)
         self._tools_widget.distance_mode_toggled.connect(self._toggle_distance_mode)
         self._tools_widget.profile_mode_toggled.connect(self._toggle_profile_mode)
         self.map_view.profile_point_placed.connect(self._on_profile_point_placed)
@@ -513,6 +515,19 @@ class MainWindow(QMainWindow):
             self._recent_menu.addAction(placeholder)
 
     # ─── Analysis ────────────────────────────────────────────────────────────
+
+    def _autodetect_profile(self, dem_paths: list[Path]) -> None:
+        from karstlab.data.land_profiles import detect_land_profile
+
+        paths = [Path(p) for p in (dem_paths or []) if p]
+        if not paths:
+            return
+        detected = detect_land_profile(paths)
+        if detected and detected != self._tools_widget.profile_id():
+            self._tools_widget.set_profile(detected)
+            self.statusBar().showMessage(
+                self.tr("Detected region '{0}' from DEM tiles").format(detected)
+            )
 
     def _resolve_dem_paths(self) -> list[Path]:
         if self._current_project is not None and self._current_project.dem_paths:

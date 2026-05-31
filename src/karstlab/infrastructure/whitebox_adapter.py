@@ -107,6 +107,12 @@ class WhiteboxAdapter:
             tools.exe_path = str(executable_path)
         if work_dir is not None:
             tools.work_dir = str(work_dir)
+        # Use every available core for the multi-threaded WhiteboxTools commands
+        # (flow accumulation, breaching, etc.). -1 means "all cores"; set it
+        # explicitly so the analysis is not left on a conservative default.
+        set_max_procs = getattr(tools, "set_max_procs", None)
+        if callable(set_max_procs):
+            set_max_procs(-1)
         return cls(tools=tools)
 
     @property

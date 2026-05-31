@@ -5,6 +5,8 @@ from __future__ import annotations
 import heapq
 import json
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -24,7 +26,7 @@ from karstlab.business.dolines import (
     detect_dolines,
 )
 from karstlab.business.hydrology import HydrologyAnalyzer, HydrologyBackend
-from karstlab.business.terrain import curvature, hillshade, multidirectional_hillshade, slope
+from karstlab.business.terrain import compute_terrain_derivatives
 from karstlab.data.analysis_exports import (
     build_statistics,
     write_statistics,
@@ -99,29 +101,27 @@ def run_headless_analysis(
         )
     )
 
-    _notify(callback, "Computing terrain derivatives")
-    terrain_started = datetime.now(UTC)
-    terrain_paths = _write_terrain_derivatives(original_dem, paths)
-    steps.append(
-        _completed_step(
-            "terrain",
-            started_at=terrain_started,
-            output_paths=list(terrain_paths.values()),
-            metadata={"derivatives": sorted(terrain_paths)},
+    # The terrain derivatives and contours are pure NumPy work, while the
+    # hydrology and detection-fill steps run inside the WhiteboxTools subprocess.
+    # The two tracks only depend on the input DEM, so overlap them: NumPy runs on
+    # a worker thread (its heavy ufuncs release the GIL) while Whitebox crunches
+    # in its own process. Progress markers stay monotonic because the GUI takes
+    # the max of any reported phase value.
+    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="karstlab-numpy") as executor:
+        numpy_future = executor.submit(
+            _run_numpy_track, original_dem, paths, project, callback=callback
         )
-    )
 
-    _notify(callback, "Running hydrology analysis")
-    hydrology_started = datetime.now(UTC)
-    hydrology = HydrologyAnalyzer(whitebox=hydrology_backend)
-    hydrology_outputs = hydrology.run(
-        dem_path,
-        project.output_dir / "rasters",
-        stream_threshold=float(project.analysis_params.stream_threshold_cells),
-        callback=callback,
-    )
-    steps.append(
-        _completed_step(
+        _notify(callback, "Running hydrology analysis")
+        hydrology_started = datetime.now(UTC)
+        hydrology = HydrologyAnalyzer(whitebox=hydrology_backend)
+        hydrology_outputs = hydrology.run(
+            dem_path,
+            project.output_dir / "rasters",
+            stream_threshold=float(project.analysis_params.stream_threshold_cells),
+            callback=callback,
+        )
+        hydrology_step = _completed_step(
             "hydrology",
             started_at=hydrology_started,
             output_paths=[
@@ -131,27 +131,31 @@ def run_headless_analysis(
                 hydrology_outputs.streams,
             ],
         )
-    )
 
-    _notify(callback, "Filling depressions")
-    fill_started = datetime.now(UTC)
-    detection_filled_dem = _fill_depressions_for_detection(
-        original_dem,
-        dem_path=dem_path,
-        output_path=project.output_dir
-        / "rasters"
-        / "depression_fill"
-        / "dem_detection_filled.tif",
-        hydrology_backend=hydrology_backend,
-        callback=callback,
-    )
-    steps.append(
-        _completed_step(
+        _notify(callback, "Filling depressions")
+        fill_started = datetime.now(UTC)
+        detection_filled_dem = _fill_depressions_for_detection(
+            original_dem,
+            dem_path=dem_path,
+            output_path=project.output_dir
+            / "rasters"
+            / "depression_fill"
+            / "dem_detection_filled.tif",
+            hydrology_backend=hydrology_backend,
+            callback=callback,
+        )
+        fill_step = _completed_step(
             "depression_fill",
             started_at=fill_started,
             output_paths=[detection_filled_dem],
         )
-    )
+
+        # Re-raises any exception (including AnalysisCancelled) from the NumPy track.
+        numpy_track = numpy_future.result()
+
+    steps.append(numpy_track.terrain_step)
+    steps.append(hydrology_step)
+    steps.append(fill_step)
 
     _notify(callback, "Detecting dolines")
     detection_started = datetime.now(UTC)
@@ -464,6 +468,9 @@ def _fill_depressions_for_detection(
     hydrology_backend: HydrologyBackend,
     callback: Callable[[str], None] | None,
 ) -> Path:
+    # Remove stale output so WhiteboxTools doesn't reuse a cached file from
+    # a previous run that may have had different DEM dimensions.
+    output_path.unlink(missing_ok=True)
     try:
         return hydrology_backend.fill_depressions(
             dem_path,

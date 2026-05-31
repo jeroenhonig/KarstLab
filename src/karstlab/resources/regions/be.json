@@ -7,7 +7,17 @@
     "fr": "Belgique"
   },
   "default_crs": "EPSG:31370",
-  "common_crs": ["EPSG:31370", "EPSG:32631", "EPSG:32632"],
+  "common_crs": [
+    "EPSG:31370",
+    "EPSG:32631",
+    "EPSG:32632"
+  ],
+  "bbox_wgs84": [
+    2.5,
+    49.4,
+    6.5,
+    51.6
+  ],
   "dem_sources": [
     {
       "name": "DTM Vlaanderen",

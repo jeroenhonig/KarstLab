@@ -38,14 +38,23 @@ def extract_contours(
             records.append(
                 {
                     "elevation_m": level,
-                    "geometry": LineString(
-                        _pixel_center_to_spatial(row=row, col=col, transform=transform)
-                        for row, col in contour
-                    ),
+                    "geometry": LineString(_contour_to_spatial(contour, transform=transform)),
                 }
             )
 
     return _contour_frame(records, crs=crs)
+
+
+def _contour_to_spatial(contour: NDArray[Any], *, transform: Affine) -> NDArray[np.float64]:
+    """Map an ``(N, 2)`` array of ``(row, col)`` pixel coords to ``(N, 2)`` spatial XY.
+
+    Applies the affine transform to every vertex at once instead of one Python
+    call per point, which dominates contour extraction on dense DEMs.
+    """
+    rows = contour[:, 0] + 0.5
+    cols = contour[:, 1] + 0.5
+    xs, ys = transform * (cols, rows)
+    return np.column_stack([xs, ys])
 
 
 def _as_elevation(array: NDArray[Any]) -> NDArray[np.float64]:
@@ -69,16 +78,6 @@ def _contour_levels(minimum: float, maximum: float, interval_m: float) -> tuple[
             levels.append(level)
         current += interval_m
     return tuple(levels)
-
-
-def _pixel_center_to_spatial(
-    *,
-    row: float,
-    col: float,
-    transform: Affine,
-) -> tuple[float, float]:
-    x_coord, y_coord = transform * (col + 0.5, row + 0.5)
-    return float(x_coord), float(y_coord)
 
 
 def _contour_frame(records: list[dict[str, Any]], *, crs: CRS | str | None) -> gpd.GeoDataFrame:
