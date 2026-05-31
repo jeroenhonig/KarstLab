@@ -79,6 +79,38 @@ class _BrgmOverlayWorker(QObject):
         self.finished.emit(fetch_brgm_cavites(self._department))
 
 
+class _ProfileWorker(QObject):
+    """Sample a DEM elevation profile off the UI thread."""
+
+    finished = Signal(object, object)
+    failed = Signal(str)
+
+    def __init__(
+        self,
+        dem_path: Path,
+        start: tuple[float, float],
+        end: tuple[float, float],
+        crs: str,
+    ) -> None:
+        super().__init__()
+        self._dem_path = dem_path
+        self._start = start
+        self._end = end
+        self._crs = crs
+
+    def run(self) -> None:
+        from karstlab.business.terrain import extract_elevation_profile
+
+        try:
+            distances, elevations = extract_elevation_profile(
+                self._dem_path, self._start, self._end, crs=self._crs
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.failed.emit(str(exc))
+            return
+        self.finished.emit(distances, elevations)
+
+
 class MainWindow(QMainWindow):
     """Map-centric KarstLab main window."""
 
@@ -87,6 +119,8 @@ class MainWindow(QMainWindow):
         self._analysis_runner = analysis_runner
         self._analysis_thread: QThread | None = None
         self._brgm_thread: QThread | None = None
+        self._profile_thread: QThread | None = None
+        self._profile_p1: tuple[float, float] | None = None
         self._analysis_worker: AnalysisWorker | None = None
         self._current_result: PipelineResult | None = None
         self._current_project: ProjectFile | None = None
@@ -299,6 +333,8 @@ class MainWindow(QMainWindow):
             )
         )
         self._tools_widget.distance_mode_toggled.connect(self._toggle_distance_mode)
+        self._tools_widget.profile_mode_toggled.connect(self._toggle_profile_mode)
+        self.map_view.profile_point_placed.connect(self._on_profile_point_placed)
         self._tools_widget.project_dir_changed.connect(
             lambda p: self._user_settings_update_project_dir(p)
         )
@@ -499,6 +535,8 @@ class MainWindow(QMainWindow):
 
         self._tools_widget.set_distance_mode(False)
         self.map_view.clear_distance_mode()
+        self._tools_widget.set_profile_mode(False)
+        self.map_view.clear_profile_mode()
         self._tools_widget.set_analyze_enabled(False)
         self._tools_widget.set_cancel_enabled(True)
         self._tools_widget.set_progress(5)
@@ -641,6 +679,7 @@ class MainWindow(QMainWindow):
 
     def _toggle_distance_mode(self, active: bool) -> None:
         if active:
+            self._tools_widget.set_profile_mode(False)
             self.map_view.start_distance_mode()
             self.statusBar().showMessage(
                 self.tr("Click two points on the map to measure distance.")
@@ -648,6 +687,72 @@ class MainWindow(QMainWindow):
         else:
             self.map_view.clear_distance_mode()
             self.statusBar().showMessage(self.tr("Distance tool off"))
+
+    def _toggle_profile_mode(self, active: bool) -> None:
+        if active:
+            self._tools_widget.set_distance_mode(False)
+            self._profile_p1 = None
+            self.map_view.start_profile_mode()
+            self.statusBar().showMessage(
+                self.tr("Click two points on the map to draw an elevation profile.")
+            )
+        else:
+            self._profile_p1 = None
+            self.map_view.clear_profile_mode()
+            self.statusBar().showMessage(self.tr("Profile tool off"))
+
+    def _on_profile_point_placed(self, lat: float, lon: float) -> None:
+        if self._profile_p1 is None:
+            self._profile_p1 = (lat, lon)
+            self.statusBar().showMessage(self.tr("Click the second profile point."))
+            return
+        start = self._profile_p1
+        end = (lat, lon)
+        self._profile_p1 = None
+
+        dem_paths = self._resolve_dem_paths()
+        if not dem_paths:
+            self.statusBar().showMessage(self.tr("Select a DEM before drawing a profile."))
+            return
+        dem_path = dem_paths[0]
+        if self._current_project is not None:
+            crs = self._current_project.crs_analysis
+        else:
+            from karstlab.data.crs import detect_crs
+
+            crs = detect_crs(dem_path).to_string()
+
+        if self._profile_thread is not None and self._profile_thread.isRunning():
+            return
+        worker = _ProfileWorker(dem_path, start, end, crs)
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.finished.connect(lambda d, e: self._on_profile_ready(d, e, start, end))
+        worker.failed.connect(self._on_profile_failed)
+        worker.finished.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        thread.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(self._clear_profile_thread)
+        self._profile_thread = thread
+        thread.start()
+
+    def _on_profile_ready(self, distances: Any, elevations: Any, start: Any, end: Any) -> None:
+        from karstlab.presentation.profile_dialog import ProfileDialog
+
+        dialog = ProfileDialog(distances, elevations, start, end, parent=self)
+        dialog.exec()
+        self._tools_widget.set_profile_mode(False)
+        self.map_view.clear_profile_mode()
+
+    def _on_profile_failed(self, message: str) -> None:
+        self.statusBar().showMessage(self.tr("Profile failed: {0}").format(message))
+        self._tools_widget.set_profile_mode(False)
+        self.map_view.clear_profile_mode()
+
+    def _clear_profile_thread(self) -> None:
+        self._profile_thread = None
 
     def _on_map_marker_placed(self, lat: float, lon: float) -> None:
         self._markers_widget.set_gps_coordinate(lat, lon)

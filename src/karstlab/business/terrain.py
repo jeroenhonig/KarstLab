@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
+import rasterio
 from affine import Affine
 from numpy.typing import NDArray
+from pyproj import Geod, Transformer
+from rasterio.crs import CRS
 
 type CellSize = float | tuple[float, float] | Affine
+
+_WGS84_GEOD = Geod(ellps="WGS84")
 
 
 def hillshade(
@@ -114,3 +120,55 @@ def _cell_size(cell_size: CellSize) -> tuple[float, float]:
     if x_size <= 0 or y_size <= 0:
         raise ValueError("cell size must be positive")
     return x_size, y_size
+
+
+def extract_elevation_profile(
+    dem_path: Path,
+    start: tuple[float, float],
+    end: tuple[float, float],
+    *,
+    crs: CRS | str,
+    n_samples: int = 256,
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Sample a DEM along a geodetic great-circle line between two WGS84 points.
+
+    ``start`` and ``end`` are ``(lat, lon)`` in WGS84. Returns
+    ``(distances_m, elevations_m)`` where ``distances_m[0] == 0`` and the last
+    distance equals the geodesic length. Nodata samples become ``nan``.
+    Raises ``ValueError`` if both endpoints are outside the DEM bounds.
+    """
+    if n_samples < 2:
+        raise ValueError("n_samples must be at least 2")
+
+    lat1, lon1 = start
+    lat2, lon2 = end
+    _, _, total_distance = _WGS84_GEOD.inv(lon1, lat1, lon2, lat2)
+
+    intermediate = (
+        _WGS84_GEOD.npts(lon1, lat1, lon2, lat2, n_samples - 2) if n_samples > 2 else []
+    )
+    lons = [lon1, *[lon for lon, _ in intermediate], lon2]
+    lats = [lat1, *[lat for _, lat in intermediate], lat2]
+    distances = np.linspace(0.0, float(total_distance), n_samples)
+
+    transformer = Transformer.from_crs("EPSG:4326", crs, always_xy=True)
+    xs, ys = transformer.transform(lons, lats)
+    xs = np.asarray(xs, dtype=np.float64)
+    ys = np.asarray(ys, dtype=np.float64)
+
+    with rasterio.open(dem_path) as dataset:
+        left, bottom, right, top = dataset.bounds
+
+        def _inside(x: float, y: float) -> bool:
+            return bool(left <= x <= right and bottom <= y <= top)
+
+        if not _inside(xs[0], ys[0]) and not _inside(xs[-1], ys[-1]):
+            raise ValueError("both profile endpoints are outside the DEM bounds")
+
+        nodata = dataset.nodata
+        samples = dataset.sample(np.column_stack([xs, ys]))
+        elevations = np.array([float(value[0]) for value in samples], dtype=np.float64)
+
+    if nodata is not None:
+        elevations[elevations == nodata] = np.nan
+    return distances, elevations

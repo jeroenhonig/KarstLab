@@ -143,10 +143,58 @@ _INJECT_POI_JS = """
 """
 
 
+_PROFILE_HANDLER_JS = """
+(function() {
+    if (window._kl_prof_active) return;
+    window._kl_prof_active = true;
+    window._kl_prof_p1 = null;
+    window._kl_prof_layers = [];
+    for (var k in window) {
+        try {
+            var m = window[k];
+            if (m && typeof m === 'object' && m._leaflet_id !== undefined
+                    && typeof m.on === 'function') {
+                window._kl_prof_map = m;
+                window._kl_prof_handler = function(e) {
+                    var dot = L.circleMarker(e.latlng,
+                        {radius: 5, color: '#f59e0b'}).addTo(m);
+                    window._kl_prof_layers.push(dot);
+                    window.location.href = 'karstlab://profile?lat='
+                        + e.latlng.lat.toFixed(6) + '&lon='
+                        + e.latlng.lng.toFixed(6);
+                };
+                m.on('click', window._kl_prof_handler);
+                break;
+            }
+        } catch (_) {}
+    }
+})();
+"""
+
+_CLEAR_PROFILE_JS = """
+(function() {
+    var m = window._kl_prof_map;
+    if (m && window._kl_prof_handler) {
+        m.off('click', window._kl_prof_handler);
+    }
+    if (window._kl_prof_layers) {
+        window._kl_prof_layers.forEach(function(layer) {
+            try { layer.remove(); } catch (_) {}
+        });
+    }
+    window._kl_prof_active = false;
+    window._kl_prof_p1 = null;
+    window._kl_prof_layers = [];
+    window._kl_prof_handler = null;
+})();
+"""
+
+
 class MapView(QWidget):
     """Map container using QWebEngineView when available, QTextBrowser otherwise."""
 
     marker_placed = Signal(float, float)
+    profile_point_placed = Signal(float, float)
 
     def __init__(self) -> None:
         super().__init__()
@@ -193,6 +241,15 @@ class MapView(QWidget):
                     except ValueError:
                         pass
                     return False
+                if url.scheme() == "karstlab" and url.host() == "profile":
+                    q = QUrlQuery(url.query())
+                    try:
+                        lat = float(q.queryItemValue("lat"))
+                        lon = float(q.queryItemValue("lon"))
+                        outer.profile_point_placed.emit(lat, lon)
+                    except ValueError:
+                        pass
+                    return False
                 result: bool = super().acceptNavigationRequest(url, nav_type, is_main_frame)
                 return result
 
@@ -215,6 +272,14 @@ class MapView(QWidget):
     def clear_distance_mode(self) -> None:
         if self._web_view is not None:
             self._web_view.page().runJavaScript(_CLEAR_DISTANCE_JS)
+
+    def start_profile_mode(self) -> None:
+        if self._web_view is not None:
+            self._web_view.page().runJavaScript(_PROFILE_HANDLER_JS)
+
+    def clear_profile_mode(self) -> None:
+        if self._web_view is not None:
+            self._web_view.page().runJavaScript(_CLEAR_PROFILE_JS)
 
     def inject_poi_layer(
         self,

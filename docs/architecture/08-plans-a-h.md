@@ -20,7 +20,7 @@ semantics without explicit override from the architect.**
 | I | implemented — ready for review | `codex/plan-g-scalability` | Distance measurement; client-side Leaflet JS; 3 tests; `make check` passed |
 | J | implemented — ready for review | `codex/plan-g-scalability` | BRGM Cavités overlay; reuses dept combo (not QLineEdit); 4 tests; `make check` passed |
 | K | implemented — ready for review | `codex/plan-g-scalability` | Extra basemaps + WMS; sourced from region map_layers (not new fr.json keys); 3 tests; `make check` passed |
-| L | pending | — | Altimetric profile (M-L) |
+| L | implemented — ready for review | `codex/plan-g-scalability` | Altimetric profile; geodetic DEM sampling + matplotlib dialog; 9 tests; `make check` passed |
 
 ---
 
@@ -1522,7 +1522,19 @@ class ProfileDialog(QDialog):
 ```
 
 **Definition of done:**
-- [ ] Profile tool toggle in tools tab
-- [ ] Click 1 places yellow dot, click 2 shows ProfileDialog with matplotlib chart
-- [ ] Profile samples DEM correctly including nodata handling
-- [ ] `make test` passes
+- [x] Profile tool toggle in tools tab (`profile_mode_toggled`, mutually exclusive
+      with the distance tool)
+- [x] Click 1 places yellow dot, click 2 shows ProfileDialog with matplotlib chart
+      (`karstlab://profile` URL scheme → `profile_point_placed`)
+- [x] Profile samples DEM correctly including nodata handling
+      (`extract_elevation_profile`: geodetic samples, nodata → nan, both-outside → ValueError)
+- [x] `make test` passes (`make check` green; 470 tests)
+
+---
+
+## Plans A–L — all implemented and committed on `codex/plan-g-scalability`
+
+All twelve plans (A–H core + I–L ARIS parity) are implemented, tested, and green under
+`make check` (lint + typecheck + 470 tests). GUI tools (I, J, L) run headless in tests via
+the offscreen Qt platform; their browser-side Leaflet behaviour is exercised through JS
+payload assertions plus signal/slot and dialog construction tests.

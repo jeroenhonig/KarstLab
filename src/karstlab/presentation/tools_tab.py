@@ -36,6 +36,7 @@ class ToolsTab(QWidget):
     tile_paths_changed = Signal(object)  # list[Path]
     project_dir_changed = Signal(Path)
     distance_mode_toggled = Signal(bool)
+    profile_mode_toggled = Signal(bool)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -80,9 +81,13 @@ class ToolsTab(QWidget):
         self._distance_button = QPushButton(self.tr("Measure distance"))
         self._distance_button.setCheckable(True)
         self._distance_button.toggled.connect(self.distance_mode_toggled.emit)
+        self._profile_button = QPushButton(self.tr("Elevation profile"))
+        self._profile_button.setCheckable(True)
+        self._profile_button.toggled.connect(self.profile_mode_toggled.emit)
         map_tools_group = QGroupBox(self.tr("Map tools"))
         map_tools_layout = QVBoxLayout(map_tools_group)
         map_tools_layout.addWidget(self._distance_button)
+        map_tools_layout.addWidget(self._profile_button)
 
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 100)
@@ -277,6 +282,11 @@ class ToolsTab(QWidget):
         """Set the measure-distance toggle state programmatically."""
         if self._distance_button.isChecked() != active:
             self._distance_button.setChecked(active)
+
+    def set_profile_mode(self, active: bool) -> None:
+        """Set the elevation-profile toggle state programmatically."""
+        if self._profile_button.isChecked() != active:
+            self._profile_button.setChecked(active)
 
     def set_analyze_enabled(self, enabled: bool) -> None:
         """Enable or disable the analyze button."""

@@ -89,3 +89,46 @@ def test_map_view_inject_poi_layer_safe_without_webengine(qapp: Any) -> None:
 
     assert "L.geoJSON(" in _INJECT_POI_JS
     assert "__DATA__" in _INJECT_POI_JS
+
+
+def test_tools_tab_profile_toggle_emits_signal(qapp: Any) -> None:
+    from karstlab.presentation.tools_tab import ToolsTab
+
+    tab = ToolsTab()
+    emitted: list[bool] = []
+    tab.profile_mode_toggled.connect(emitted.append)
+
+    tab._profile_button.setChecked(True)
+    tab._profile_button.setChecked(False)
+
+    assert emitted == [True, False]
+
+
+def test_map_view_profile_methods_safe_without_webengine(qapp: Any) -> None:
+    from karstlab.presentation.map_view import (
+        _CLEAR_PROFILE_JS,
+        _PROFILE_HANDLER_JS,
+        MapView,
+    )
+
+    view = MapView()
+    assert view._web_view is None
+    view.start_profile_mode()
+    view.clear_profile_mode()
+
+    assert "karstlab://profile" in _PROFILE_HANDLER_JS
+    assert "_kl_prof_active" in _PROFILE_HANDLER_JS
+    assert "off('click'" in _CLEAR_PROFILE_JS
+
+
+def test_profile_dialog_builds_with_profile_arrays(qapp: Any) -> None:
+    import numpy as np
+
+    from karstlab.presentation.profile_dialog import ProfileDialog
+
+    distances = np.linspace(0.0, 500.0, 32)
+    elevations = np.linspace(250.0, 255.0, 32)
+    elevations[5] = np.nan  # nodata gap must not crash rendering
+
+    dialog = ProfileDialog(distances, elevations, (44.1, 1.2), (44.2, 1.3))
+    assert dialog.windowTitle()

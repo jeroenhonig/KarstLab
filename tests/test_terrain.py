@@ -1,10 +1,31 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 from affine import Affine
+from pyproj import Transformer
 
-from karstlab.business.terrain import curvature, hillshade, multidirectional_hillshade, slope
+from karstlab.business.terrain import (
+    curvature,
+    extract_elevation_profile,
+    hillshade,
+    multidirectional_hillshade,
+    slope,
+)
+from tests.fixtures.synthetic_dem import (
+    SYNTHETIC_DEM_CRS,
+    synthetic_dem_array,
+    write_synthetic_dem,
+)
+
+_TO_WGS84 = Transformer.from_crs(SYNTHETIC_DEM_CRS, "EPSG:4326", always_xy=True)
+
+
+def _wgs84_latlon(x: float, y: float) -> tuple[float, float]:
+    lon, lat = _TO_WGS84.transform(x, y)
+    return (float(lat), float(lon))
 
 
 def test_hillshade_of_flat_surface_is_uniform() -> None:
@@ -122,3 +143,66 @@ def test_terrain_helpers_reject_non_positive_cell_size() -> None:
         curvature(np.zeros((3, 3), dtype=np.float64), cell_size=0.0)
     with pytest.raises(ValueError, match="cell size"):
         curvature(np.zeros((3, 3), dtype=np.float64), cell_size=(-5.0, 10.0))
+
+
+def test_extract_elevation_profile_returns_n_samples(tmp_path: Path) -> None:
+    dem_path = write_synthetic_dem(tmp_path / "dem.tif")
+    start = _wgs84_latlon(700010.5, 6599990.5)
+    end = _wgs84_latlon(700080.5, 6599930.5)
+
+    distances, elevations = extract_elevation_profile(
+        dem_path, start, end, crs=SYNTHETIC_DEM_CRS, n_samples=64
+    )
+
+    assert len(distances) == 64
+    assert len(elevations) == 64
+
+
+def test_extract_elevation_profile_distance_axis(tmp_path: Path) -> None:
+    dem_path = write_synthetic_dem(tmp_path / "dem.tif")
+    start = _wgs84_latlon(700010.5, 6599990.5)
+    end = _wgs84_latlon(700080.5, 6599930.5)
+
+    distances, _ = extract_elevation_profile(
+        dem_path, start, end, crs=SYNTHETIC_DEM_CRS, n_samples=64
+    )
+
+    assert distances[0] == 0.0
+    expected = float(np.hypot(700080.5 - 700010.5, 6599990.5 - 6599930.5))
+    assert distances[-1] == pytest.approx(expected, rel=0.01)
+
+
+def test_extract_elevation_profile_samples_known_value(tmp_path: Path) -> None:
+    dem_path = write_synthetic_dem(tmp_path / "dem.tif")
+    # Pixel (row=10, col=10): elevation = 250 + col*0.03 + row*0.02 = 250.5.
+    expected = float(synthetic_dem_array()[10, 10])
+    start = _wgs84_latlon(700010.5, 6599990.5)
+    end = _wgs84_latlon(700040.5, 6599960.5)
+
+    _, elevations = extract_elevation_profile(
+        dem_path, start, end, crs=SYNTHETIC_DEM_CRS, n_samples=32
+    )
+
+    assert elevations[0] == pytest.approx(expected, abs=1.0)
+
+
+def test_extract_elevation_profile_marks_outside_samples_nan(tmp_path: Path) -> None:
+    dem_path = write_synthetic_dem(tmp_path / "dem.tif")
+    start = _wgs84_latlon(700010.5, 6599990.5)  # inside
+    end = _wgs84_latlon(900000.0, 6599990.5)  # far outside DEM bounds
+
+    distances, elevations = extract_elevation_profile(
+        dem_path, start, end, crs=SYNTHETIC_DEM_CRS, n_samples=16
+    )
+
+    assert len(distances) == 16
+    assert np.isnan(elevations[-1])
+
+
+def test_extract_elevation_profile_rejects_fully_outside_line(tmp_path: Path) -> None:
+    dem_path = write_synthetic_dem(tmp_path / "dem.tif")
+    start = _wgs84_latlon(900000.0, 6599990.5)
+    end = _wgs84_latlon(910000.0, 6599990.5)
+
+    with pytest.raises(ValueError, match="outside the DEM bounds"):
+        extract_elevation_profile(dem_path, start, end, crs=SYNTHETIC_DEM_CRS, n_samples=16)
