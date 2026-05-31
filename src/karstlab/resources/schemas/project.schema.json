@@ -1,0 +1,198 @@
+{
+  "$defs": {
+    "AnalysisParams": {
+      "additionalProperties": false,
+      "properties": {
+        "contour_interval_m": {
+          "default": 5.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Contour Interval M",
+          "type": "number"
+        },
+        "doline_max_area_m2": {
+          "default": 60000.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Doline Max Area M2",
+          "type": "number"
+        },
+        "doline_max_depth_m": {
+          "default": 40.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Doline Max Depth M",
+          "type": "number"
+        },
+        "doline_min_area_m2": {
+          "default": 1.0,
+          "minimum": 0.0,
+          "title": "Doline Min Area M2",
+          "type": "number"
+        },
+        "doline_min_depth_m": {
+          "default": 0.25,
+          "minimum": 0.0,
+          "title": "Doline Min Depth M",
+          "type": "number"
+        },
+        "stream_threshold_cells": {
+          "default": 1000,
+          "exclusiveMinimum": 0,
+          "title": "Stream Threshold Cells",
+          "type": "integer"
+        }
+      },
+      "title": "AnalysisParams",
+      "type": "object"
+    },
+    "Locale": {
+      "enum": [
+        "en",
+        "nl",
+        "fr"
+      ],
+      "title": "Locale",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "analysis_params": {
+      "$ref": "#/$defs/AnalysisParams"
+    },
+    "cache_dir": {
+      "format": "path",
+      "title": "Cache Dir",
+      "type": "string"
+    },
+    "created": {
+      "format": "date-time",
+      "title": "Created",
+      "type": "string"
+    },
+    "crs_analysis": {
+      "pattern": "^EPSG:\\d+$",
+      "title": "Crs Analysis",
+      "type": "string"
+    },
+    "crs_display": {
+      "default": "EPSG:4326",
+      "pattern": "^EPSG:\\d+$",
+      "title": "Crs Display",
+      "type": "string"
+    },
+    "dem_paths": {
+      "items": {
+        "format": "path",
+        "type": "string"
+      },
+      "title": "Dem Paths",
+      "type": "array"
+    },
+    "export_dir": {
+      "format": "path",
+      "title": "Export Dir",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "input_dir": {
+      "format": "path",
+      "title": "Input Dir",
+      "type": "string"
+    },
+    "land_profile": {
+      "default": "generic",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "title": "Land Profile",
+      "type": "string"
+    },
+    "language": {
+      "$ref": "#/$defs/Locale",
+      "default": "en"
+    },
+    "last_pipeline_result": {
+      "anyOf": [
+        {
+          "format": "path",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Pipeline Result"
+    },
+    "logs_dir": {
+      "format": "path",
+      "title": "Logs Dir",
+      "type": "string"
+    },
+    "map_dir": {
+      "format": "path",
+      "title": "Map Dir",
+      "type": "string"
+    },
+    "marker_paths": {
+      "items": {
+        "format": "path",
+        "type": "string"
+      },
+      "title": "Marker Paths",
+      "type": "array"
+    },
+    "modified": {
+      "format": "date-time",
+      "title": "Modified",
+      "type": "string"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "output_dir": {
+      "format": "path",
+      "title": "Output Dir",
+      "type": "string"
+    },
+    "pipeline_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Pipeline Version",
+      "type": "string"
+    },
+    "project_dir": {
+      "format": "path",
+      "title": "Project Dir",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "slug": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Slug",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "slug",
+    "project_dir",
+    "input_dir",
+    "output_dir",
+    "export_dir",
+    "map_dir",
+    "cache_dir",
+    "logs_dir",
+    "crs_analysis"
+  ],
+  "title": "ProjectFile",
+  "type": "object"
+}

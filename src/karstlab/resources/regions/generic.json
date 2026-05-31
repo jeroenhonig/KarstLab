@@ -1,0 +1,38 @@
+{
+  "id": "generic",
+  "version": "1.0.0",
+  "name": {
+    "en": "Generic / Worldwide",
+    "nl": "Generiek / Wereldwijd",
+    "fr": "Générique / Mondial"
+  },
+  "default_crs": "EPSG:4326",
+  "common_crs": ["EPSG:4326", "EPSG:3857"],
+  "dem_sources": [],
+  "map_layers": {
+    "base": [
+      {
+        "name": "OpenStreetMap",
+        "type": "tile",
+        "url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "attribution": "© OpenStreetMap contributors"
+      },
+      {
+        "name": "Esri World Imagery",
+        "type": "tile",
+        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        "attribution": "© Esri"
+      }
+    ],
+    "overlays": []
+  },
+  "poi_sources": [],
+  "analysis_defaults": {
+    "contour_interval_m": 10.0,
+    "stream_threshold_cells": 1000,
+    "doline_min_depth_m": 1.0,
+    "doline_max_depth_m": 200.0,
+    "doline_min_area_m2": 25.0,
+    "doline_max_area_m2": 100000.0
+  }
+}

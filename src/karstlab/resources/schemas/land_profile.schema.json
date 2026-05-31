@@ -1,0 +1,357 @@
+{
+  "$defs": {
+    "AnalysisParams": {
+      "additionalProperties": false,
+      "properties": {
+        "contour_interval_m": {
+          "default": 5.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Contour Interval M",
+          "type": "number"
+        },
+        "doline_max_area_m2": {
+          "default": 60000.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Doline Max Area M2",
+          "type": "number"
+        },
+        "doline_max_depth_m": {
+          "default": 40.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Doline Max Depth M",
+          "type": "number"
+        },
+        "doline_min_area_m2": {
+          "default": 1.0,
+          "minimum": 0.0,
+          "title": "Doline Min Area M2",
+          "type": "number"
+        },
+        "doline_min_depth_m": {
+          "default": 0.25,
+          "minimum": 0.0,
+          "title": "Doline Min Depth M",
+          "type": "number"
+        },
+        "stream_threshold_cells": {
+          "default": 1000,
+          "exclusiveMinimum": 0,
+          "title": "Stream Threshold Cells",
+          "type": "integer"
+        }
+      },
+      "title": "AnalysisParams",
+      "type": "object"
+    },
+    "DemSource": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "resolution_m": {
+          "exclusiveMinimum": 0.0,
+          "title": "Resolution M",
+          "type": "number"
+        },
+        "url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "url",
+        "description",
+        "resolution_m"
+      ],
+      "title": "DemSource",
+      "type": "object"
+    },
+    "LayerConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "attribution": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attribution"
+        },
+        "layer": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layer"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "opacity": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Opacity"
+        },
+        "type": {
+          "$ref": "#/$defs/LayerType"
+        },
+        "url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "url"
+      ],
+      "title": "LayerConfig",
+      "type": "object"
+    },
+    "LayerType": {
+      "enum": [
+        "tile",
+        "wmts",
+        "wms"
+      ],
+      "title": "LayerType",
+      "type": "string"
+    },
+    "LocalizedText": {
+      "additionalProperties": false,
+      "properties": {
+        "en": {
+          "minLength": 1,
+          "title": "En",
+          "type": "string"
+        },
+        "fr": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fr"
+        },
+        "nl": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nl"
+        }
+      },
+      "required": [
+        "en"
+      ],
+      "title": "LocalizedText",
+      "type": "object"
+    },
+    "MapLayers": {
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "items": {
+            "$ref": "#/$defs/LayerConfig"
+          },
+          "minItems": 1,
+          "title": "Base",
+          "type": "array"
+        },
+        "overlays": {
+          "items": {
+            "$ref": "#/$defs/LayerConfig"
+          },
+          "title": "Overlays",
+          "type": "array"
+        }
+      },
+      "required": [
+        "base"
+      ],
+      "title": "MapLayers",
+      "type": "object"
+    },
+    "PoiSource": {
+      "additionalProperties": false,
+      "properties": {
+        "departmental": {
+          "default": false,
+          "title": "Departmental",
+          "type": "boolean"
+        },
+        "layer": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layer"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "type": {
+          "$ref": "#/$defs/PoiSourceType"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "title": "PoiSource",
+      "type": "object"
+    },
+    "PoiSourceType": {
+      "enum": [
+        "geojson",
+        "csv",
+        "wfs",
+        "brgm_cavites",
+        "spelebase"
+      ],
+      "title": "PoiSourceType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "analysis_defaults": {
+      "$ref": "#/$defs/AnalysisParams"
+    },
+    "common_crs": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Common Crs",
+      "type": "array"
+    },
+    "default_crs": {
+      "pattern": "^EPSG:\\d+$",
+      "title": "Default Crs",
+      "type": "string"
+    },
+    "dem_sources": {
+      "items": {
+        "$ref": "#/$defs/DemSource"
+      },
+      "title": "Dem Sources",
+      "type": "array"
+    },
+    "id": {
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "map_layers": {
+      "$ref": "#/$defs/MapLayers"
+    },
+    "name": {
+      "$ref": "#/$defs/LocalizedText"
+    },
+    "poi_sources": {
+      "items": {
+        "$ref": "#/$defs/PoiSource"
+      },
+      "title": "Poi Sources",
+      "type": "array"
+    },
+    "version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "name",
+    "default_crs",
+    "common_crs",
+    "map_layers",
+    "analysis_defaults"
+  ],
+  "title": "LandProfile",
+  "type": "object"
+}
