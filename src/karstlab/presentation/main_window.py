@@ -276,6 +276,11 @@ class MainWindow(QMainWindow):
         self._tools_widget.dem_path_changed.connect(
             lambda p: self.statusBar().showMessage(f"DEM selected: {p.name}")
         )
+        self._tools_widget.tile_paths_changed.connect(
+            lambda paths: self.statusBar().showMessage(
+                self.tr("{0} tiles selected").format(len(paths))
+            )
+        )
         self._tools_widget.project_dir_changed.connect(
             lambda p: self._user_settings_update_project_dir(p)
         )
@@ -455,6 +460,9 @@ class MainWindow(QMainWindow):
             existing = [p for p in self._current_project.dem_paths if p.exists()]
             if existing:
                 return existing
+        tile_paths = self._tools_widget.tile_paths()
+        if tile_paths:
+            return [p for p in tile_paths if p.exists()]
         single = self._tools_widget.dem_path()
         if single is not None and single.exists():
             return [single]

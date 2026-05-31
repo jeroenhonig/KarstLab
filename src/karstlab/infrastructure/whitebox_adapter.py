@@ -2,12 +2,25 @@
 
 from __future__ import annotations
 
+import os
+import ssl
 from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
 from typing import Protocol
+
+# WhiteboxTools downloads its binary via HTTPS on first use. On macOS the
+# bundled Python often lacks system root certificates, causing SSL failures.
+# Point urllib at certifi's bundle when available so the download succeeds.
+try:
+    import certifi as _certifi
+
+    os.environ.setdefault("SSL_CERT_FILE", _certifi.where())
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", _certifi.where())
+except ModuleNotFoundError:
+    pass
 
 from whitebox.whitebox_tools import WhiteboxTools
 
