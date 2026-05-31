@@ -6,6 +6,8 @@ from karstlab.data.schemas import DepressionResult
 from karstlab.presentation.map_builder import (
     ImageLayerSpec,
     MapLayerSpec,
+    TileLayerSpec,
+    WmsLayerSpec,
     build_top_depressions_map,
     render_top_depressions_map_html,
 )
@@ -214,3 +216,53 @@ def test_render_top_depressions_map_html_escapes_marker_text() -> None:
 
     assert "<script>alert" not in html
     assert "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;" in html
+
+
+def test_extra_tile_layers_render_in_html() -> None:
+    html = render_top_depressions_map_html(
+        [depression("d-1", rank=1, lat=44.10, lon=1.20)],
+        extra_tile_layers=[
+            TileLayerSpec(
+                name="IGN Plan",
+                url="https://example.test/wmts/{z}/{x}/{y}.png",
+                attribution="© IGN",
+            )
+        ],
+    )
+    assert "example.test/wmts" in html
+    assert "IGN Plan" in html
+
+
+def test_wms_layers_render_in_html() -> None:
+    html = render_top_depressions_map_html(
+        [depression("d-1", rank=1, lat=44.10, lon=1.20)],
+        wms_layers=[
+            WmsLayerSpec(
+                name="BRGM Géologique 50k",
+                url="https://example.test/geologie",
+                layers="SCAN_H_GEOL50",
+                attribution="© BRGM",
+            )
+        ],
+    )
+    assert "example.test/geologie" in html
+    assert "SCAN_H_GEOL50" in html
+    assert "BRGM" in html
+
+
+def test_tile_layers_are_basemaps_wms_are_overlays() -> None:
+    folium_map = build_top_depressions_map(
+        [depression("d-1", rank=1, lat=44.10, lon=1.20)],
+        extra_tile_layers=[
+            TileLayerSpec(name="Sat", url="https://example.test/s/{z}/{x}/{y}.jpg", attribution="x")
+        ],
+        wms_layers=[
+            WmsLayerSpec(
+                name="Karst", url="https://example.test/ows", layers="karst", attribution="x"
+            )
+        ],
+    )
+    html = folium_map.get_root().render()
+    # Base tile layer registered without overlay flag; WMS registered as overlay.
+    assert "example.test/s/" in html
+    assert "example.test/ows" in html

@@ -48,6 +48,8 @@ from karstlab.data.vrt_builder import assemble_geotiff, assemble_vrt
 from karstlab.presentation.map_builder import (
     ImageLayerSpec,
     MapLayerSpec,
+    TileLayerSpec,
+    WmsLayerSpec,
     render_top_depressions_map_html,
 )
 from karstlab.presentation.report import write_html_report
@@ -277,6 +279,8 @@ def run_headless_analysis(
                 )
             ],
             imported_marker_layers=_imported_marker_layers(project),
+            extra_tile_layers=_profile_extra_tile_layers(land_profile),
+            wms_layers=_profile_wms_layers(land_profile),
             tiles=_profile_tile_url(land_profile),
             tile_attribution=_profile_tile_attribution(land_profile),
         ),
@@ -586,6 +590,42 @@ def _profile_tile_attribution(profile: LandProfile | None) -> str | None:
         if layer.type == LayerType.TILE:
             return layer.attribution
     return None
+
+
+def _profile_extra_tile_layers(profile: LandProfile | None) -> list[TileLayerSpec]:
+    """Build extra XYZ basemaps from the region's tile layers (skip the primary).
+
+    Only ``tile`` layers with an XYZ template are usable as Folium basemaps;
+    ``wmts`` endpoints require keys/custom matrix sets and are skipped (the
+    same rule ``_profile_tile_url`` applies).
+    """
+    if profile is None:
+        return []
+    from karstlab.data.schemas import LayerType
+
+    tile_layers = [layer for layer in profile.map_layers.base if layer.type == LayerType.TILE]
+    # First tile layer is rendered as the primary base map via `tiles=`.
+    return [
+        TileLayerSpec(name=layer.name, url=str(layer.url), attribution=layer.attribution or "")
+        for layer in tile_layers[1:]
+    ]
+
+
+def _profile_wms_layers(profile: LandProfile | None) -> list[WmsLayerSpec]:
+    if profile is None:
+        return []
+    from karstlab.data.schemas import LayerType
+
+    return [
+        WmsLayerSpec(
+            name=layer.name,
+            url=str(layer.url),
+            layers=layer.layer or "",
+            attribution=layer.attribution or "",
+        )
+        for layer in profile.map_layers.overlays
+        if layer.type == LayerType.WMS and layer.layer
+    ]
 
 
 def _wgs84_bounds(

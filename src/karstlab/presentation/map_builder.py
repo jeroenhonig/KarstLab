@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Protocol, TypeGuard, cast
 
 import folium
-from folium.raster_layers import ImageOverlay
+from folium.raster_layers import ImageOverlay, WmsTileLayer
 
 from karstlab.data.schemas import DepressionResult
 
@@ -46,6 +46,30 @@ class ImageLayerSpec:
     opacity: float = 0.65
 
 
+@dataclass(frozen=True, slots=True)
+class TileLayerSpec:
+    """Extra XYZ/WMTS basemap shown as a radio option in the layer control."""
+
+    name: str
+    url: str  # XYZ template: {z}/{x}/{y}
+    attribution: str
+    show: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class WmsLayerSpec:
+    """WMS overlay shown as a checkbox in the layer control."""
+
+    name: str
+    url: str
+    layers: str  # WMS layer name(s)
+    attribution: str
+    fmt: str = "image/png"
+    transparent: bool = True
+    version: str = "1.3.0"
+    show: bool = False
+
+
 MapLayerInput = MapLayerSpec | Sequence[MapLayerSpec] | GeoJsonLike | None
 ImageLayerInput = ImageLayerSpec | Sequence[ImageLayerSpec] | None
 
@@ -60,6 +84,8 @@ def build_top_depressions_map(
     vector_layers: Sequence[MapLayerSpec] = (),
     imported_marker_layers: MapLayerInput = (),
     imported_markers: GeoJsonLike | None = None,
+    extra_tile_layers: Sequence[TileLayerSpec] = (),
+    wms_layers: Sequence[WmsLayerSpec] = (),
     max_results: int = 25,
     tiles: str = "OpenStreetMap",
     tile_attribution: str | None = None,
@@ -82,6 +108,8 @@ def build_top_depressions_map(
     else:
         folium_map = folium.Map(location=location, zoom_start=zoom_start, tiles=tiles)
 
+    _add_basemaps(folium_map, extra_tile_layers)
+    _add_wms_overlays(folium_map, wms_layers)
     _add_depression_geometries(folium_map, selected)
     _add_numbered_markers(folium_map, selected)
     _add_image_layers(folium_map, "Hillshade", _image_layers(hillshade_layers, hillshade_layer))
@@ -108,6 +136,8 @@ def render_top_depressions_map_html(
     vector_layers: Sequence[MapLayerSpec] = (),
     imported_marker_layers: MapLayerInput = (),
     imported_markers: GeoJsonLike | None = None,
+    extra_tile_layers: Sequence[TileLayerSpec] = (),
+    wms_layers: Sequence[WmsLayerSpec] = (),
     max_results: int = 25,
     tiles: str = "OpenStreetMap",
     tile_attribution: str | None = None,
@@ -125,6 +155,8 @@ def render_top_depressions_map_html(
             vector_layers=vector_layers,
             imported_marker_layers=imported_marker_layers,
             imported_markers=imported_markers,
+            extra_tile_layers=extra_tile_layers,
+            wms_layers=wms_layers,
             max_results=max_results,
             tiles=tiles,
             tile_attribution=tile_attribution,
@@ -133,6 +165,34 @@ def render_top_depressions_map_html(
         .get_root()
         .render()
     )
+
+
+def _add_basemaps(folium_map: folium.Map, specs: Sequence[TileLayerSpec]) -> None:
+    for spec in specs:
+        folium.TileLayer(
+            tiles=spec.url,
+            attr=spec.attribution,
+            name=spec.name,
+            show=spec.show,
+            overlay=False,
+            control=True,
+        ).add_to(folium_map)
+
+
+def _add_wms_overlays(folium_map: folium.Map, specs: Sequence[WmsLayerSpec]) -> None:
+    for spec in specs:
+        WmsTileLayer(
+            url=spec.url,
+            layers=spec.layers,
+            name=spec.name,
+            fmt=spec.fmt,
+            transparent=spec.transparent,
+            version=spec.version,
+            attr=spec.attribution,
+            show=spec.show,
+            overlay=True,
+            control=True,
+        ).add_to(folium_map)
 
 
 def _initial_location(depressions: Sequence[DepressionResult]) -> tuple[float, float]:

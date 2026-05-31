@@ -19,7 +19,7 @@ semantics without explicit override from the architect.**
 | H | implemented — ready for review | `codex/plan-g-scalability` | Backtest validation; 8 tests; `make check` passed. See Plan H deviations below. |
 | I | implemented — ready for review | `codex/plan-g-scalability` | Distance measurement; client-side Leaflet JS; 3 tests; `make check` passed |
 | J | implemented — ready for review | `codex/plan-g-scalability` | BRGM Cavités overlay; reuses dept combo (not QLineEdit); 4 tests; `make check` passed |
-| K | pending | — | Extra basemaps + WMS (M) |
+| K | implemented — ready for review | `codex/plan-g-scalability` | Extra basemaps + WMS; sourced from region map_layers (not new fr.json keys); 3 tests; `make check` passed |
 | L | pending | — | Altimetric profile (M-L) |
 
 ---
@@ -1413,10 +1413,24 @@ with Leaflet/Folium default tile matrix.
 ```
 
 **Definition of done:**
-- [ ] Extra basemaps visible as radio buttons in map LayerControl
-- [ ] WMS overlays visible as checkboxes in map LayerControl
-- [ ] `make test` passes
+- [x] Extra basemaps visible as radio buttons in map LayerControl
+      (`TileLayerSpec` → `folium.TileLayer(overlay=False)`)
+- [x] WMS overlays visible as checkboxes in map LayerControl
+      (`WmsLayerSpec` → `folium.raster_layers.WmsTileLayer(overlay=True)`)
+- [x] `make test` passes (`make check` green)
 
+### Plan K — implementation deviations (intentional)
+
+1. **No new `fr.json` keys.** `fr.json` (and the other region files) already carry the
+   needed layers under `map_layers.base` (tile/wmts) and `map_layers.overlays` (wms) via
+   the existing `LayerConfig` schema. Rather than duplicate them under new
+   `extra_tile_layers`/`wms_layers` keys, the pipeline converts the existing region config:
+   extra basemaps = the region's `tile`-type base layers after the primary; WMS overlays =
+   `map_layers.overlays` of type `wms`. `wmts` base layers are skipped (need API keys /
+   custom matrix sets — same rule `_profile_tile_url` already applies).
+2. **`TileLayerSpec`/`WmsLayerSpec` live in `map_builder.py`** (the plan allowed
+   "schemas.py or map_builder.py"); kept as plain frozen dataclasses next to the other
+   map specs rather than pydantic models, since they are render-time transport objects.
 ---
 
 ### Plan L — Altimetric Profile
