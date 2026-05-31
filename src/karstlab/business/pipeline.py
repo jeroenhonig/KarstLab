@@ -194,27 +194,8 @@ def run_headless_analysis(
         )
     )
 
-    _notify(callback, "Extracting contours")
-    contours_started = datetime.now(UTC)
-    contours = extract_contours(
-        original_dem.array,
-        transform=original_dem.metadata.transform,
-        interval_m=project.analysis_params.contour_interval_m,
-        crs=original_dem.metadata.crs,
-    )
-    _write_contours(
-        contours,
-        geojson_path=paths["contours_geojson"],
-        kml_path=paths["contours_kml"],
-    )
-    steps.append(
-        _completed_step(
-            "contours",
-            started_at=contours_started,
-            output_paths=[paths["contours_geojson"], paths["contours_kml"]],
-            metadata={"contour_count": len(contours)},
-        )
-    )
+    contours = numpy_track.contours
+    steps.append(numpy_track.contours_step)
 
     result = PipelineResult(
         project_id=project.id,
@@ -272,7 +253,7 @@ def run_headless_analysis(
             hillshade_layers=[
                 ImageLayerSpec(
                     "Hillshade",
-                    read_dem(paths["hillshade"]).array,
+                    numpy_track.hillshade_array,
                     bounds=_wgs84_bounds(
                         original_dem.metadata.bounds,
                         original_dem.metadata.crs.to_string(),
@@ -433,7 +414,68 @@ def _estimated_raster_bytes(*, width: int, height: int, count: int, dtype: str) 
     return width * height * count * np.dtype(dtype).itemsize
 
 
-def _write_terrain_derivatives(original_dem: Any, paths: dict[str, Path]) -> dict[str, Path]:
+@dataclass(frozen=True)
+class _NumpyTrackResult:
+    """Outputs of the NumPy analysis track (terrain derivatives + contours)."""
+
+    terrain_step: PipelineStepResult
+    hillshade_array: np.ndarray
+    contours: gpd.GeoDataFrame
+    contours_step: PipelineStepResult
+
+
+def _run_numpy_track(
+    original_dem: Any,
+    paths: dict[str, Path],
+    project: ProjectFile,
+    *,
+    callback: Callable[[str], None] | None,
+) -> _NumpyTrackResult:
+    """Run the pure-NumPy analysis steps (terrain derivatives, then contours).
+
+    Executed on a worker thread so it overlaps the WhiteboxTools hydrology and
+    fill steps, which run in a separate process.
+    """
+    _notify(callback, "Computing terrain derivatives")
+    terrain_started = datetime.now(UTC)
+    terrain_paths, hillshade_array = _write_terrain_derivatives(original_dem, paths)
+    terrain_step = _completed_step(
+        "terrain",
+        started_at=terrain_started,
+        output_paths=list(terrain_paths.values()),
+        metadata={"derivatives": sorted(terrain_paths)},
+    )
+
+    _notify(callback, "Extracting contours")
+    contours_started = datetime.now(UTC)
+    contours = extract_contours(
+        original_dem.array,
+        transform=original_dem.metadata.transform,
+        interval_m=project.analysis_params.contour_interval_m,
+        crs=original_dem.metadata.crs,
+    )
+    _write_contours(
+        contours,
+        geojson_path=paths["contours_geojson"],
+        kml_path=paths["contours_kml"],
+    )
+    contours_step = _completed_step(
+        "contours",
+        started_at=contours_started,
+        output_paths=[paths["contours_geojson"], paths["contours_kml"]],
+        metadata={"contour_count": len(contours)},
+    )
+    return _NumpyTrackResult(
+        terrain_step=terrain_step,
+        hillshade_array=hillshade_array,
+        contours=contours,
+        contours_step=contours_step,
+    )
+
+
+def _write_terrain_derivatives(
+    original_dem: Any, paths: dict[str, Path]
+) -> tuple[dict[str, Path], np.ndarray]:
     transform = original_dem.metadata.transform
     crs = original_dem.metadata.crs
     nodata = original_dem.metadata.nodata
@@ -441,23 +483,23 @@ def _write_terrain_derivatives(original_dem: Any, paths: dict[str, Path]) -> dic
     if nodata is not None:
         array = np.where(array == nodata, np.nan, array)
 
-    derivatives = {
-        "hillshade": hillshade(array, cell_size=transform),
-        "hillshade_multi": multidirectional_hillshade(array, cell_size=transform),
-        "slope": slope(array, cell_size=transform),
-        "curvature": curvature(array, cell_size=transform),
-    }
-    return {
-        name: save_geotiff(
+    derivatives = compute_terrain_derivatives(array, cell_size=transform)
+    written: dict[str, Path] = {}
+    hillshade_array: np.ndarray | None = None
+    for name, values in derivatives.items():
+        values_float32 = values.astype("float32")
+        if name == "hillshade":
+            hillshade_array = values_float32
+        written[name] = save_geotiff(
             paths[name],
-            values.astype("float32"),
+            values_float32,
             crs=crs,
             transform=transform,
             nodata=np.nan,
             dtype="float32",
         )
-        for name, values in derivatives.items()
-    }
+    assert hillshade_array is not None  # compute_terrain_derivatives always yields it
+    return written, hillshade_array
 
 
 def _fill_depressions_for_detection(
