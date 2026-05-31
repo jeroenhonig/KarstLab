@@ -66,7 +66,7 @@ def _depression(identifier: str, x: float, y: float) -> DepressionResult:
 
 
 def _small_params(**overrides: object) -> ConduitProjectionParams:
-    base = {
+    base: dict[str, object] = {
         "sigma_m": 300.0,
         "decay_lambda": 0.001,
         "max_projection_distance_m": 2000.0,

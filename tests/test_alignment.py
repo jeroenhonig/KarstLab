@@ -9,12 +9,11 @@ from shapely.geometry import Point
 
 from karstlab.business.alignment import (
     AlignmentParams,
-    _fold_bearing,
     _pairwise_bearings,
     detect_doline_alignment,
     plot_rosette,
 )
-from karstlab.data.crs import project_centroids, project_geometry
+from karstlab.data.crs import fold_bearing, project_centroids, project_geometry
 from karstlab.data.schemas import (
     Coordinate,
     DepressionQualityFlags,
@@ -99,7 +98,7 @@ def test_bearing_folding_keeps_opposite_directions_in_same_bin() -> None:
 
     bearings = _pairwise_bearings(coords, k=1, max_distance_m=200.0)
     counts, edges = np.histogram(bearings, bins=18, range=(0.0, 180.0))
-    folded_bin = int(np.searchsorted(edges, _fold_bearing(float(bearings[0])), side="right") - 1)
+    folded_bin = int(np.searchsorted(edges, fold_bearing(float(bearings[0])), side="right") - 1)
 
     assert counts[folded_bin] == 2
 
@@ -134,7 +133,9 @@ def test_dbscan_separated_groups_write_cluster_pngs(tmp_path: Path) -> None:
         rosette_dir=tmp_path,
     )
 
-    assert sorted(result.cluster_id for result in results) == [0, 1]
+    assert sorted(
+        result.cluster_id for result in results if result.cluster_id is not None
+    ) == [0, 1]
     assert (tmp_path / "rosette_cluster_0.png").exists()
     assert (tmp_path / "rosette_cluster_1.png").exists()
 

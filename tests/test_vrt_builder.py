@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -94,8 +95,8 @@ def test_assemble_vrt_uses_fallback_crs_for_crsless_tiles(tmp_path) -> None:  # 
 
 
 def test_assemble_geotiff_reads_vrt_by_windows(
-    monkeypatch: pytest.MonkeyPatch, tmp_path
-) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     tile = np.arange(64, dtype=np.float32).reshape((8, 8))
     tile_path = save_geotiff(
         tmp_path / "tile.tif",
@@ -109,24 +110,24 @@ def test_assemble_geotiff_reads_vrt_by_windows(
     source_reads: list[object] = []
 
     class ReadSpy:
-        def __init__(self, dataset):  # type: ignore[no-untyped-def]
+        def __init__(self, dataset: Any) -> None:
             self._dataset = dataset
 
-        def __enter__(self):  # type: ignore[no-untyped-def]
+        def __enter__(self) -> ReadSpy:
             self._dataset.__enter__()
             return self
 
-        def __exit__(self, *args):  # type: ignore[no-untyped-def]
+        def __exit__(self, *args: object) -> object:
             return self._dataset.__exit__(*args)
 
-        def __getattr__(self, name: str):  # type: ignore[no-untyped-def]
+        def __getattr__(self, name: str) -> Any:
             return getattr(self._dataset, name)
 
-        def read(self, band: int, *args, **kwargs):  # type: ignore[no-untyped-def]
+        def read(self, band: int, *args: object, **kwargs: object) -> Any:
             source_reads.append(kwargs.get("window"))
             return self._dataset.read(band, *args, **kwargs)
 
-    def open_spy(path, *args, **kwargs):  # type: ignore[no-untyped-def]
+    def open_spy(path: object, *args: object, **kwargs: object) -> Any:
         dataset = original_open(path, *args, **kwargs)
         if Path(str(path)) == vrt.path:
             return ReadSpy(dataset)

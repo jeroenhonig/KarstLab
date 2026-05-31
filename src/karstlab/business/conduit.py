@@ -125,6 +125,92 @@ def corridor_field_value(
     return np.where(in_range, value, 0.0)
 
 
+@dataclass(frozen=True)
+class CorridorContext:
+    """Reusable heading + field-evaluation context for a known caveline.
+
+    Encapsulates the projection terminus, forward/perp unit vectors, barriers,
+    and heading provenance so callers (``project_conduit`` and
+    ``business/backtest.py``) share one analytical field instead of
+    re-deriving heading or re-implementing the field formula.
+    """
+
+    terminus: np.ndarray
+    forward: np.ndarray
+    perp: np.ndarray
+    crs: CRS | str
+    params: ConduitProjectionParams
+    barriers: list[tuple[str, Any]]
+    heading_provenance: HeadingProvenance
+
+    def along_perp(self, coords_metric: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        rel = np.asarray(coords_metric, dtype=np.float64) - self.terminus
+        d_along = rel[:, 0] * self.forward[0] + rel[:, 1] * self.forward[1]
+        d_perp = rel[:, 0] * self.perp[0] + rel[:, 1] * self.perp[1]
+        return d_along, d_perp
+
+    def field_at_metric(self, coords_metric: np.ndarray) -> np.ndarray:
+        coords = np.asarray(coords_metric, dtype=np.float64)
+        if coords.size == 0:
+            return np.asarray([], dtype=np.float64)
+        d_along, d_perp = self.along_perp(coords)
+        values = corridor_field_value(d_along, d_perp, self.params)
+        if self.barriers:
+            for index, row in enumerate(coords):
+                if _point_blocked(
+                    row, self.barriers, buffer_m=self.params.barrier_line_buffer_m
+                ):
+                    values[index] = 0.0
+        return values
+
+    def field_at_wgs84(self, points: list[shapely.geometry.Point]) -> np.ndarray:
+        if not points:
+            return np.asarray([], dtype=np.float64)
+        coords = np.asarray(
+            [project_geometry(point, crs=self.crs).coords[0][:2] for point in points],
+            dtype=np.float64,
+        )
+        return self.field_at_metric(coords)
+
+
+def corridor_axis(
+    known_caveline: shapely.geometry.LineString,
+    rosette_results: list[RosetteResult],
+    *,
+    crs: CRS | str,
+    target_points: list[shapely.geometry.Point] | None = None,
+    barrier_geometries: list[shapely.geometry.base.BaseGeometry | LineBarrier] | None = None,
+    params: ConduitProjectionParams | None = None,
+) -> CorridorContext:
+    """Derive the heading + field context for ``known_caveline`` (WGS84)."""
+    resolved = params or ConduitProjectionParams()
+    if not is_metric_crs(crs):
+        raise ValueError(f"crs is not metric: {crs}")
+
+    proj_line = project_geometry(known_caveline, crs=crs)
+    terminus = np.asarray(proj_line.coords[-1][:2], dtype=np.float64)
+    projected_targets = _project_targets(target_points, crs=crs)
+    provenance, forward = _derive_heading(
+        proj_line,
+        terminus=terminus,
+        rosette_results=rosette_results,
+        projected_targets=projected_targets,
+        original_targets=target_points or [],
+        params=resolved,
+    )
+    perp = np.array([-forward[1], forward[0]], dtype=np.float64)
+    barriers = _project_barriers(barrier_geometries or [], crs=crs)
+    return CorridorContext(
+        terminus=terminus,
+        forward=forward,
+        perp=perp,
+        crs=crs,
+        params=resolved,
+        barriers=barriers,
+        heading_provenance=provenance,
+    )
+
+
 def project_conduit(
     known_caveline: shapely.geometry.LineString,
     depressions: list[DepressionResult],
@@ -140,24 +226,19 @@ def project_conduit(
 ) -> ConduitProjectionResult:
     """Predict a karst conduit continuation as a relative likelihood corridor."""
     resolved = params or ConduitProjectionParams()
-    if not is_metric_crs(crs):
-        raise ValueError(f"crs is not metric: {crs}")
-
-    proj_line = project_geometry(known_caveline, crs=crs)
-    terminus = np.asarray(proj_line.coords[-1][:2], dtype=np.float64)
-
-    projected_targets = _project_targets(target_points, crs=crs)
-    provenance, forward = _derive_heading(
-        proj_line,
-        terminus=terminus,
-        rosette_results=rosette_results,
-        projected_targets=projected_targets,
-        original_targets=target_points or [],
+    context = corridor_axis(
+        known_caveline,
+        rosette_results,
+        crs=crs,
+        target_points=target_points,
+        barrier_geometries=barrier_geometries,
         params=resolved,
     )
-    perp = np.array([-forward[1], forward[0]], dtype=np.float64)
-
-    barriers = _project_barriers(barrier_geometries or [], crs=crs)
+    terminus = context.terminus
+    forward = context.forward
+    perp = context.perp
+    provenance = context.heading_provenance
+    barriers = context.barriers
 
     field, transform, width, height = _build_field(
         terminus=terminus,
@@ -686,8 +767,10 @@ __all__ = [
     "CandidateEntrance",
     "ConduitProjectionParams",
     "ConduitProjectionResult",
+    "CorridorContext",
     "HeadingProvenance",
     "LineBarrier",
+    "corridor_axis",
     "corridor_field_value",
     "project_conduit",
     "run_conduit_analysis",

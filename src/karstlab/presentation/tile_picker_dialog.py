@@ -6,10 +6,11 @@ import json
 import math
 import re
 import tempfile
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QTimer, QUrl, QUrlQuery
+from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -19,6 +20,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QVBoxLayout,
+    QWidget,
 )
 
 # ── Lambert93 (EPSG:2154) → WGS84 inverse projection ────────────────────────
@@ -38,7 +40,10 @@ def _precompute() -> tuple[float, float, float]:
 
     def _t(ph: float) -> float:
         s = _e * math.sin(ph)
-        return math.tan(math.pi / 4.0 - ph / 2.0) / ((1.0 - s) / (1.0 + s)) ** (_e / 2.0)
+        return float(
+            math.tan(math.pi / 4.0 - ph / 2.0)
+            / ((1.0 - s) / (1.0 + s)) ** (_e / 2.0)
+        )
 
     m1, m2 = _m(phi1), _m(phi2)
     t0, t1, t2 = _t(phi0), _t(phi1), _t(phi2)
@@ -169,15 +174,15 @@ def _render_html(geojson: dict[str, Any], center_lat: float, center_lon: float, 
 class TilePickerDialog(QDialog):
     """Map-based dialog for selecting RGE ALTI ASC tiles from a directory."""
 
-    def __init__(self, initial_dir: Path | None = None, parent: object = None) -> None:
-        super().__init__(parent)  # type: ignore[call-arg]
+    def __init__(self, initial_dir: Path | None = None, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
         self.setWindowTitle(self.tr("Select DEM tiles"))
         self.resize(1000, 700)
 
         self._tiles: dict[str, Path] = {}
         self._selected: set[str] = set()
         self._html_tmp: Path | None = None
-        self._web_view: object | None = None
+        self._web_view: QWidget | None = None
         self._page: object | None = None
 
         # ── Directory row
@@ -204,9 +209,7 @@ class TilePickerDialog(QDialog):
 
         # ── Map area
         self._map_placeholder = QLabel(self.tr("Browse to a tile directory to load the map."))
-        self._map_placeholder.setAlignment(
-            self._map_placeholder.alignment()  # type: ignore[arg-type]
-        )
+        self._map_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         map_widget = self._create_web_view()
 
         # ── OK/Cancel
@@ -229,9 +232,7 @@ class TilePickerDialog(QDialog):
             self._load_directory(initial_dir)
 
     # ── Web view setup ────────────────────────────────────────────────────────
-    def _create_web_view(self) -> object:
-        from PySide6.QtWidgets import QWidget
-
+    def _create_web_view(self) -> QWidget:
         try:
             from PySide6.QtCore import QUrlQuery as _UQ
             from PySide6.QtWebEngineCore import QWebEnginePage
@@ -242,11 +243,15 @@ class TilePickerDialog(QDialog):
             class _Page(QWebEnginePage):
                 def acceptNavigationRequest(
                     self_page,
-                    url: QUrl,
-                    nav_type: object,
+                    url: QUrl | str,
+                    nav_type: QWebEnginePage.NavigationType,
                     is_main_frame: bool,
                 ) -> bool:
-                    if url.scheme() == "karstlab" and url.host() == "tiletoggle":
+                    if (
+                        isinstance(url, QUrl)
+                        and url.scheme() == "karstlab"
+                        and url.host() == "tiletoggle"
+                    ):
                         key = _UQ(url.query()).queryItemValue("id")
                         if key:
                             QTimer.singleShot(0, lambda k=key: dialog_ref._toggle(k))
@@ -256,12 +261,11 @@ class TilePickerDialog(QDialog):
 
             self._web_view = QWebEngineView()
             self._page = _Page(self._web_view)
-            self._web_view.setPage(self._page)  # type: ignore[attr-defined]
-            return self._web_view  # type: ignore[return-value]
+            self._web_view.setPage(self._page)
+            return self._web_view
 
         except ImportError:
-            label = QLabel(self.tr("QWebEngineView not available."))
-            return label  # type: ignore[return-value]
+            return QLabel(self.tr("QWebEngineView not available."))
 
     # ── Directory loading ─────────────────────────────────────────────────────
     def _browse_dir(self) -> None:
@@ -315,17 +319,16 @@ class TilePickerDialog(QDialog):
 
         # Write to temp file to avoid QWebEngineView setHtml size limits
         if self._html_tmp is not None:
-            try:
+            with suppress(Exception):
                 self._html_tmp.unlink(missing_ok=True)
-            except Exception:
-                pass
-        tmp = tempfile.NamedTemporaryFile(
+        with tempfile.NamedTemporaryFile(
             suffix=".html", delete=False, mode="w", encoding="utf-8"
-        )
-        tmp.write(html)
-        tmp.close()
-        self._html_tmp = Path(tmp.name)
-        self._web_view.setUrl(QUrl.fromLocalFile(str(self._html_tmp)))  # type: ignore[attr-defined]
+        ) as tmp:
+            tmp.write(html)
+            self._html_tmp = Path(tmp.name)
+        web_view = self._web_view
+        if web_view is not None and hasattr(web_view, "setUrl"):
+            web_view.setUrl(QUrl.fromLocalFile(str(self._html_tmp)))
 
     # ── Selection management ──────────────────────────────────────────────────
     def _toggle(self, key: str) -> None:
@@ -338,13 +341,17 @@ class TilePickerDialog(QDialog):
         self._update_count()
         if self._web_view is not None:
             js = f"window.applyToggle({json.dumps(key)});"
-            self._web_view.page().runJavaScript(js)  # type: ignore[attr-defined]
+            page = self._web_view.page() if hasattr(self._web_view, "page") else None
+            if page is not None:
+                page.runJavaScript(js)
 
     def _clear_all(self) -> None:
         self._selected.clear()
         self._update_count()
         if self._web_view is not None:
-            self._web_view.page().runJavaScript("window.applyClearAll();")  # type: ignore[attr-defined]
+            page = self._web_view.page() if hasattr(self._web_view, "page") else None
+            if page is not None:
+                page.runJavaScript("window.applyClearAll();")
 
     def _update_count(self) -> None:
         n_total = len(self._tiles)
@@ -362,10 +369,8 @@ class TilePickerDialog(QDialog):
     def done(self, result: int) -> None:
         # Clean up temp file on close
         if self._html_tmp is not None:
-            try:
+            with suppress(Exception):
                 self._html_tmp.unlink(missing_ok=True)
-            except Exception:
-                pass
             self._html_tmp = None
         super().done(result)
 

@@ -195,6 +195,13 @@ def test_canonical_output_paths_include_expected_release_outputs(tmp_path: Path)
     assert paths["hillshade"] == project.output_dir / "rasters" / "hillshade.tif"
     assert paths["hillshade_multi"] == project.output_dir / "rasters" / "hillshade_multi.tif"
     assert paths["depression_depth"] == project.output_dir / "rasters" / "depression_depth.tif"
+    assert (
+        paths["conduit_probability"]
+        == project.output_dir / "rasters" / "conduit_probability.tif"
+    )
+    assert paths["conduit_contours"] == project.export_dir / "conduit_contours_trou-du-vent.geojson"
+    assert paths["backtest_report"] == project.export_dir / "backtest_report_trou-du-vent.json"
+    assert paths["backtest_figure"] == project.export_dir / "backtest_figure_trou-du-vent.png"
     assert paths["rosette_dir"] == project.output_dir / "rosettes"
     assert paths["slope"] == project.output_dir / "rasters" / "slope.tif"
     assert paths["curvature"] == project.output_dir / "rasters" / "curvature.tif"

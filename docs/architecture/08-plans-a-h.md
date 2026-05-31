@@ -9,18 +9,48 @@ semantics without explicit override from the architect.**
 
 | Plan | Status | Branch | Notes |
 |------|--------|--------|-------|
-| G | implemented — ready for review | `codex/plan-g-scalability` | DEM scalability; review findings fixed; `make test` passed |
-| C | implemented — ready for review | `codex/plan-g-scalability` | Survey line import; `make test` passed |
-| D | implemented — ready for review | `codex/plan-g-scalability` | POI type discrimination; `make test` passed |
-| A | implemented — ready for review | `codex/plan-g-scalability` | Multidirectional hillshade; `make test` passed |
-| B | implemented — ready for review | `codex/plan-g-scalability` | Depression depth raster export; `make test` passed |
-| E | implemented — ready for review | `codex/plan-g-scalability` | Doline alignment rosettes; `make test` passed |
-| F | implemented — ready for review | `codex/plan-g-scalability` | Conduit prediction corridor; 20 tests; `make test` passed. See Plan F deviations below. |
-| H | next | — | Backtest validation |
+| G | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | DEM scalability; review findings fixed; `make check` passed |
+| C | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Survey line import; `make check` passed |
+| D | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | POI type discrimination; `make check` passed |
+| A | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Multidirectional hillshade; `make check` passed |
+| B | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Depression depth raster export; `make check` passed |
+| E | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Doline alignment rosettes; `make check` passed |
+| F | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Conduit prediction corridor; 20 tests; `make check` passed. See Plan F deviations below. |
+| H | implemented — ready for review | `codex/plan-g-scalability` | Backtest validation; 8 tests; `make check` passed. See Plan H deviations below. |
 | I | pending | — | Distance measurement (S) |
 | J | pending | — | BRGM Cavités overlay (M) |
 | K | pending | — | Extra basemaps + WMS (M) |
 | L | pending | — | Altimetric profile (M-L) |
+
+---
+
+## Codex Review — 2026-05-31
+
+**Decision:** Plans G, C, D, A, B, E, and F are accepted as the foundation for
+Plan H development. No blocking review findings remain for starting the backtest phase.
+
+**Verified after cleanup:**
+
+- `make check` — lint passed, typecheck passed, 444 tests passed, 2 warnings.
+- `make test` now uses `.venv/bin/python` automatically when the project venv exists.
+- Plan G review fixes are present: settings are injected into the large-DEM threshold path,
+  CRS fallback comes from `project.crs_analysis`, and the remaining full-array read limitation
+  is documented as outside the reconstructed Plan G scope.
+- Plan C survey import functions and orientation handling are implemented with tests.
+- Plan D `PoiType` mapping and old-cache compatibility are implemented with tests.
+- Plans A and B export `hillshade_multi` and `depression_depth` through canonical paths and
+  pipeline step outputs.
+- Plan E alignment is isolated from conduit/backtest, uses metric CRS helpers, supports DBSCAN
+  lazily, and writes rosette PNGs.
+- Plan F conduit projection provides reusable analytical field evaluation, `LineBarrier`,
+  heading provenance, canonical outputs, and WGS84 contour export.
+
+**Accepted implementation note:**
+
+- Plan F contour export writes GeoJSON `LineString` isolines. The original text mentioned
+  converting contours to polygons, but LineString isolines match the `conduit_contours` naming,
+  current tests, and Plan H's analytical-field reuse. Treat this as an accepted implementation
+  deviation unless the architect explicitly requires filled contour polygons.
 
 ---
 
@@ -1003,12 +1033,28 @@ def run_backtest(
 ```
 
 **Definition of done:**
-- [ ] `business/backtest.py` created
-- [ ] `backtest_report` and `backtest_figure` in `canonical_output_paths`
-- [ ] `backtest.py` imports from `conduit.py`; `conduit.py` imports nothing from `backtest.py`
-- [ ] All tests (a)–(h) pass
-- [ ] Report JSON matches schema above
-- [ ] `make test` passes
+- [x] `business/backtest.py` created
+- [x] `backtest_report` and `backtest_figure` in `canonical_output_paths`
+- [x] `backtest.py` imports from `conduit.py`; `conduit.py` imports nothing from `backtest.py`
+- [x] All tests (a)–(h) pass
+- [x] Report JSON matches schema above
+- [x] `make test` passes (`make check`: lint + typecheck + 452 tests green)
+
+### Plan H — implementation deviations (intentional)
+
+1. **Field reuse via `conduit.corridor_axis` / `CorridorContext`.** To honour "reuses
+   `project_conduit()` … does not implement its own field computation or transforms",
+   the heading + analytical field were extracted from `project_conduit` into a shared
+   `corridor_axis()` returning a `CorridorContext` (terminus, forward/perp, barriers,
+   provenance) with `field_at_metric()` / `field_at_wgs84()`. `project_conduit` now calls
+   it too, so backtest and projection share one field formula. Hidden-line coverage is
+   evaluated with the continuous field (resolution-independent — test f).
+
+2. **`orientation_warning` added to `BacktestResult` + report JSON.** The plan text says
+   orientation discrepancy is "reported in provenance", but `BacktestResult` has no
+   provenance field. Added an explicit `orientation_warning: str | None` field and JSON
+   key; never auto-flips the line (global invariant 6). Test (d) asserts it is set when
+   `target_points` indicate a reversed survey.
 
 ---
 

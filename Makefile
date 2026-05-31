@@ -1,4 +1,4 @@
-PYTHON ?= python3
+PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 
 .PHONY: test lint typecheck check doctor schemas check-schemas translate icons package-macos package-macos-release package-windows package clean
 

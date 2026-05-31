@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import ssl
 from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass

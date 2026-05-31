@@ -6,9 +6,8 @@ from pathlib import Path
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
-    QDialog,
-    QMessageBox,
     QComboBox,
+    QDialog,
     QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
@@ -16,6 +15,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QProgressBar,
     QPushButton,
     QSpinBox,
@@ -171,7 +171,11 @@ class ToolsTab(QWidget):
             return
         paths = dlg.selected_paths()
         if not paths:
-            QMessageBox.warning(self, self.tr("No tiles selected"), self.tr("Select at least one tile."))
+            QMessageBox.warning(
+                self,
+                self.tr("No tiles selected"),
+                self.tr("Select at least one tile."),
+            )
             return
         self.set_tile_paths(paths)
 
