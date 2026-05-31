@@ -228,7 +228,7 @@ class MapView(QWidget):
     def _init_web_view(self, layout: QVBoxLayout) -> None:
         try:
             from PySide6.QtCore import QUrlQuery
-            from PySide6.QtWebEngineCore import QWebEnginePage
+            from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
             from PySide6.QtWebEngineWidgets import QWebEngineView
         except ImportError:
             self._fallback = QTextBrowser()
@@ -268,6 +268,16 @@ class MapView(QWidget):
 
         self._web_view = QWebEngineView()
         self._web_view.setPage(_KarstLabPage(self._web_view))
+        # The result map is a local file:// document that pulls Leaflet + OSM
+        # tiles from CDNs; without this a file:// origin blocks those remote
+        # loads and the map renders blank white.
+        settings = self._web_view.settings()
+        settings.setAttribute(
+            QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True
+        )
+        settings.setAttribute(
+            QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True
+        )
         layout.addWidget(self._web_view)
 
     def inject_click_handler(self) -> None:
