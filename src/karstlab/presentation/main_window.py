@@ -935,15 +935,28 @@ def _progress_value(message: str) -> int:
     if "analysis complete" in message.lower():
         return 100
     for marker, value in (
-        ("BreachDepressions", 15),
-        ("D8Pointer", 30),
-        ("D8FlowAccumulation", 45),
-        ("ExtractStreams", 60),
-        ("FillDepressions", 70),
-        ("Saving data", 80),
-        ("Output file written", 85),
+        # Pipeline phase markers (emitted by run_headless_analysis), monotonic.
+        ("assembling", 8),
+        ("building analysis geotiff", 12),
+        ("reading dem", 14),
+        ("computing terrain", 18),
+        ("running hydrology", 22),
+        # WhiteboxTools sub-steps within the hydrology phase.
+        ("breachdepressions", 28),
+        ("d8pointer", 34),
+        ("d8flowaccumulation", 42),
+        ("extractstreams", 50),
+        ("filldepressions", 60),
+        ("saving data", 64),
+        ("output file written", 66),
+        ("filling depressions", 68),
+        ("detecting dolines", 74),
+        ("extracting contours", 82),
+        ("writing exports", 88),
+        ("rendering interactive map", 93),
+        ("writing report", 97),
     ):
-        if marker.lower() in message.lower():
+        if marker in message.lower():
             return value
     if "%" in message:
         return min(90, max(10, _extract_percent(message)))

@@ -92,7 +92,8 @@ class ToolsTab(QWidget):
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
-        self._progress_bar.setTextVisible(False)
+        self._progress_bar.setTextVisible(True)
+        self._progress_bar.setFormat("%p%")
 
         self._analyze_button = QPushButton(self.tr("Analyze"))
         self._analyze_button.setObjectName("primaryButton")

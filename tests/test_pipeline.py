@@ -183,7 +183,14 @@ def test_run_headless_analysis_writes_pipeline_result(tmp_path: Path) -> None:
     assert paths["interactive_map"].exists()
     assert paths["report"].exists()
     assert "<iframe" in paths["report"].read_text(encoding="utf-8")
-    assert messages == ["breach", "pointer", "accumulation", "streams", "fill"]
+    # WhiteboxTools backend messages must still arrive, in order, interleaved with
+    # the pipeline phase-progress messages.
+    backend = {"breach", "pointer", "accumulation", "streams", "fill"}
+    backend_messages = [m for m in messages if m in backend]
+    assert backend_messages == ["breach", "pointer", "accumulation", "streams", "fill"]
+    # Phase-progress messages drive the determinate progress bar.
+    assert "Detecting dolines" in messages
+    assert "Rendering interactive map" in messages
 
 
 def test_run_headless_analysis_falls_back_when_fill_depressions_fails(

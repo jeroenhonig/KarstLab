@@ -75,8 +75,11 @@ def run_headless_analysis(
     started_at = datetime.now(UTC)
     steps: list[PipelineStepResult] = []
     paths = canonical_output_paths(project)
-    dem_path = _analysis_dem_path(project, paths, steps=steps, user_settings=settings)
+    dem_path = _analysis_dem_path(
+        project, paths, steps=steps, user_settings=settings, callback=callback
+    )
 
+    _notify(callback, "Reading DEM")
     original_dem = read_dem(dem_path)
     steps.append(
         _completed_step(
@@ -96,6 +99,7 @@ def run_headless_analysis(
         )
     )
 
+    _notify(callback, "Computing terrain derivatives")
     terrain_started = datetime.now(UTC)
     terrain_paths = _write_terrain_derivatives(original_dem, paths)
     steps.append(
@@ -107,6 +111,7 @@ def run_headless_analysis(
         )
     )
 
+    _notify(callback, "Running hydrology analysis")
     hydrology_started = datetime.now(UTC)
     hydrology = HydrologyAnalyzer(whitebox=hydrology_backend)
     hydrology_outputs = hydrology.run(
@@ -128,6 +133,7 @@ def run_headless_analysis(
         )
     )
 
+    _notify(callback, "Filling depressions")
     fill_started = datetime.now(UTC)
     detection_filled_dem = _fill_depressions_for_detection(
         original_dem,
@@ -147,6 +153,7 @@ def run_headless_analysis(
         )
     )
 
+    _notify(callback, "Detecting dolines")
     detection_started = datetime.now(UTC)
     filled_dem = read_dem(detection_filled_dem)
     depression_depth = depression_depth_raster(
@@ -183,6 +190,7 @@ def run_headless_analysis(
         )
     )
 
+    _notify(callback, "Extracting contours")
     contours_started = datetime.now(UTC)
     contours = extract_contours(
         original_dem.array,
@@ -224,6 +232,7 @@ def run_headless_analysis(
         },
     )
 
+    _notify(callback, "Writing exports")
     export_started = datetime.now(UTC)
     write_statistics(result, paths["statistics"])
     write_top25_vector_exports(
@@ -247,6 +256,7 @@ def run_headless_analysis(
         )
     )
 
+    _notify(callback, "Rendering interactive map")
     map_started = datetime.now(UTC)
     paths["interactive_map"].parent.mkdir(parents=True, exist_ok=True)
     streams = _stream_raster_to_geodataframe(hydrology_outputs.streams)
@@ -301,6 +311,7 @@ def run_headless_analysis(
         )
     )
 
+    _notify(callback, "Writing report")
     report_started = datetime.now(UTC)
     write_html_report(
         paths["report"],
@@ -324,12 +335,18 @@ def run_headless_analysis(
     return result
 
 
+def _notify(callback: Callable[[str], None] | None, message: str) -> None:
+    if callback is not None:
+        callback(message)
+
+
 def _analysis_dem_path(
     project: ProjectFile,
     paths: dict[str, Path],
     *,
     steps: list[PipelineStepResult],
     user_settings: UserSettings,
+    callback: Callable[[str], None] | None = None,
 ) -> Path:
     fallback_crs = project.crs_analysis
 
@@ -343,10 +360,13 @@ def _analysis_dem_path(
         # Small GeoTIFF with embedded CRS — use directly, no VRT needed.
         return project.dem_paths[0]
 
+    _notify(callback, f"Assembling {len(project.dem_paths)} DEM tiles")
     vrt_started = datetime.now(UTC)
     vrt_path = project.cache_dir / "assembled_dem.vrt"
     mosaic = assemble_vrt(project.dem_paths, vrt_path, fallback_crs=fallback_crs)
     use_vrt_for_analysis = _mosaic_exceeds_large_dem_threshold(mosaic, user_settings=user_settings)
+    if not use_vrt_for_analysis:
+        _notify(callback, "Building analysis GeoTIFF mosaic")
     output_paths = [mosaic.path]
     metadata = {
         "tile_count": len(mosaic.tiles),
