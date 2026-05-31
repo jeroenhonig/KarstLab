@@ -345,14 +345,8 @@ class MainWindow(QMainWindow):
             lambda p: self._user_settings_update_project_dir(p)
         )
 
-        self._layers_widget.layer_visibility_changed.connect(
-            lambda name, visible: self.statusBar().showMessage(
-                f"{name}: {'visible' if visible else 'hidden'}"
-            )
-        )
-        self._layers_widget.layer_opacity_changed.connect(
-            lambda name, value: self.statusBar().showMessage(f"{name} opacity: {value}%")
-        )
+        self._layers_widget.layer_visibility_changed.connect(self._on_layer_visibility_changed)
+        self._layers_widget.layer_opacity_changed.connect(self._on_layer_opacity_changed)
 
         self._results_widget.depression_selected.connect(self._on_depression_selected)
 
@@ -819,8 +813,57 @@ class MainWindow(QMainWindow):
         self._markers_widget.clear_gps_fields()
         self.statusBar().showMessage(self.tr("Added marker: {0} ({1}, {2})").format(name, lat, lon))
 
+    # Maps the Layers-tab labels to a substring of the folium overlay name.
+    _LAYER_NAME_MAP = {
+        "Doline footprints": "footprints",
+        "Top 25 markers": "markers",
+        "Contours": "Contours",
+        "Streams": "Streams",
+        "Hillshade": "Hillshade",
+    }
+
+    def _on_layer_visibility_changed(self, name: str, visible: bool) -> None:
+        target = self._LAYER_NAME_MAP.get(name, name)
+        self.map_view.set_layer_visible(target, visible)
+        self.statusBar().showMessage(f"{name}: {'visible' if visible else 'hidden'}")
+
+    def _on_layer_opacity_changed(self, name: str, value: int) -> None:
+        target = self._LAYER_NAME_MAP.get(name, name)
+        self.map_view.set_layer_opacity(target, value / 100.0)
+        self.statusBar().showMessage(f"{name} opacity: {value}%")
+
     def _on_markers_changed(self, paths: list[Path]) -> None:
         self._persist_marker_paths()
+        self._refresh_imported_markers_on_map()
+
+    def _refresh_imported_markers_on_map(self) -> None:
+        geojson = self._imported_markers_geojson()
+        if geojson is not None:
+            self.map_view.set_imported_markers(geojson)
+
+    def _imported_markers_geojson(self) -> str | None:
+        import json
+
+        from karstlab.data.vector_io import read_gpx_waypoints, read_kml_geometries
+
+        features: list[Any] = []
+        for path in self._markers_widget._marker_paths:
+            if not path.exists():
+                continue
+            try:
+                suffix = path.suffix.lower()
+                if suffix == ".kml":
+                    frame = read_kml_geometries(path)
+                elif suffix == ".gpx":
+                    frame = read_gpx_waypoints(path)
+                else:
+                    continue
+                features.extend(json.loads(frame.to_json())["features"])
+            except Exception:  # noqa: BLE001 - skip unreadable marker files
+                continue
+        if not features:
+            return None
+        return json.dumps({"type": "FeatureCollection", "features": features})
 
     def _persist_marker_paths(self) -> None:
         if self._current_project is None:

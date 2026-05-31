@@ -203,6 +203,104 @@ _CLEAR_PROFILE_JS = """
 """
 
 
+def _kl_layer_groups_js() -> str:
+    # Folium stores overlays in `window.layer_control_*_layers.{overlays,base_layers}`
+    # as {name: leafletLayer}; the Leaflet control instance itself is anonymous.
+    return """
+    var map = null;
+    for (var mk in window) {
+        try {
+            var mm = window[mk];
+            if (mm && typeof mm === 'object' && mm._leaflet_id !== undefined && mm.addLayer) {
+                map = mm; break;
+            }
+        } catch (_) {}
+    }
+    var entries = [];
+    for (var k in window) {
+        try {
+            var c = window[k];
+            if (c && typeof c === 'object' && (c.overlays || c.base_layers)) {
+                [c.overlays || {}, c.base_layers || {}].forEach(function(group) {
+                    for (var name in group) { entries.push([name, group[name]]); }
+                });
+            }
+        } catch (_) {}
+    }
+    """
+
+
+_LAYER_VISIBILITY_JS = """
+(function(target, visible) {
+    var needle = target.toLowerCase();
+    __GROUPS__
+    if (!map) { return; }
+    entries.forEach(function(entry) {
+        if (entry[0].toLowerCase().indexOf(needle) >= 0) {
+            if (visible) { map.addLayer(entry[1]); } else { map.removeLayer(entry[1]); }
+        }
+    });
+})(__NAME__, __VISIBLE__);
+"""
+
+_LAYER_OPACITY_JS = """
+(function(target, opacity) {
+    var needle = target.toLowerCase();
+    __GROUPS__
+    function apply(layer) {
+        if (layer.setOpacity) { layer.setOpacity(opacity); }
+        if (layer.setStyle) { layer.setStyle({opacity: opacity, fillOpacity: opacity * 0.6}); }
+        if (layer.eachLayer) {
+            layer.eachLayer(function(sub) {
+                if (sub.setStyle) { sub.setStyle({opacity: opacity, fillOpacity: opacity * 0.6}); }
+            });
+        }
+    }
+    entries.forEach(function(entry) {
+        if (entry[0].toLowerCase().indexOf(needle) >= 0) { apply(entry[1]); }
+    });
+})(__NAME__, __OPACITY__);
+"""
+
+_IMPORTED_MARKERS_JS = """
+(function(data) {
+    var map = null;
+    for (var k in window) {
+        try {
+            var m = window[k];
+            if (m && typeof m === 'object' && m._leaflet_id !== undefined && m.addLayer) {
+                map = m; break;
+            }
+        } catch (_) {}
+    }
+    if (!map) { return; }
+    if (window._kl_imported_layer) {
+        try { map.removeLayer(window._kl_imported_layer); } catch (_) {}
+        window._kl_imported_layer = null;
+    }
+    var geojson = JSON.parse(data);
+    window._kl_imported_layer = L.geoJSON(geojson, {
+        pointToLayer: function(f, ll) {
+            return L.circleMarker(ll, {
+                radius: 6, color: '#7c3aed', fillColor: '#7c3aed', fillOpacity: 0.85, weight: 1
+            });
+        },
+        style: function(_f) {
+            return {color: '#7c3aed', weight: 3, fillColor: '#7c3aed', fillOpacity: 0.2};
+        },
+        onEachFeature: function(f, l) {
+            var name = (f.properties && f.properties.name) || '';
+            if (name) {
+                var span = document.createElement('span');
+                span.textContent = String(name);
+                l.bindTooltip(span);
+            }
+        }
+    }).addTo(map);
+})(__DATA__);
+"""
+
+
 class MapView(QWidget):
     """Map container using QWebEngineView when available, QTextBrowser otherwise."""
 
@@ -303,6 +401,36 @@ class MapView(QWidget):
     def clear_profile_mode(self) -> None:
         if self._web_view is not None:
             self._web_view.page().runJavaScript(_CLEAR_PROFILE_JS)
+
+    def set_layer_visible(self, name: str, visible: bool) -> None:
+        """Show/hide a folium overlay on the live map by name substring."""
+        if self._web_view is None:
+            return
+        script = (
+            _LAYER_VISIBILITY_JS.replace("__GROUPS__", _kl_layer_groups_js())
+            .replace("__NAME__", json.dumps(name))
+            .replace("__VISIBLE__", "true" if visible else "false")
+        )
+        self._web_view.page().runJavaScript(script)
+
+    def set_layer_opacity(self, name: str, opacity: float) -> None:
+        """Set the opacity (0.0-1.0) of a folium overlay by name substring."""
+        if self._web_view is None:
+            return
+        clamped = max(0.0, min(1.0, opacity))
+        script = (
+            _LAYER_OPACITY_JS.replace("__GROUPS__", _kl_layer_groups_js())
+            .replace("__NAME__", json.dumps(name))
+            .replace("__OPACITY__", repr(clamped))
+        )
+        self._web_view.page().runJavaScript(script)
+
+    def set_imported_markers(self, geojson_str: str) -> None:
+        """Replace the imported-marker overlay on the live map with new geometry."""
+        if self._web_view is None:
+            return
+        script = _IMPORTED_MARKERS_JS.replace("__DATA__", json.dumps(geojson_str))
+        self._web_view.page().runJavaScript(script)
 
     def inject_poi_layer(
         self,

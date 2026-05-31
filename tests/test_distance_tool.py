@@ -156,3 +156,23 @@ def test_brgm_overlay_worker_forwards_cache_dir(qapp: Any, monkeypatch: Any, tmp
 
     assert captured == {"department": "25", "cache_dir": tmp_path}
     assert results == [[]]
+
+
+def test_map_view_layer_controls_safe_without_webengine(qapp: Any) -> None:
+    from karstlab.presentation.map_view import (
+        _IMPORTED_MARKERS_JS,
+        _LAYER_OPACITY_JS,
+        _LAYER_VISIBILITY_JS,
+        MapView,
+    )
+
+    view = MapView()
+    assert view._web_view is None
+    # No-ops without a web engine; must not raise.
+    view.set_layer_visible("Contours", False)
+    view.set_layer_opacity("Hillshade", 0.4)
+    view.set_imported_markers('{"type":"FeatureCollection","features":[]}')
+
+    assert "overlays" in _LAYER_VISIBILITY_JS or "__GROUPS__" in _LAYER_VISIBILITY_JS
+    assert "setOpacity" in _LAYER_OPACITY_JS
+    assert "_kl_imported_layer" in _IMPORTED_MARKERS_JS
