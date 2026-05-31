@@ -263,7 +263,7 @@ def run_headless_analysis(
                         original_dem.metadata.bounds,
                         original_dem.metadata.crs.to_string(),
                     ),
-                    opacity=0.45,
+                    opacity=0.85,
                     show=True,
                 ),
             ],

@@ -231,10 +231,12 @@ def _add_depression_geometries(
             aliases=["Rank", "ID", "Depth (m)", "Area (m2)"],
         ),
         style_function=lambda _feature: {
-            "color": "#0f766e",
-            "fillColor": "#14b8a6",
-            "fillOpacity": 0.25,
-            "weight": 2,
+            # ARIS-style: solid orange doline footprints, clearly visible on the
+            # hillshade relief.
+            "color": "#9a3412",
+            "fillColor": "#ea8a4e",
+            "fillOpacity": 0.6,
+            "weight": 1,
         },
     ).add_to(folium_map)
 
