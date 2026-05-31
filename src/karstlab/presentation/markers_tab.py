@@ -67,6 +67,7 @@ class MarkersTab(QWidget):
     gps_marker_add_requested = Signal(str, str)
     gpx_export_save_requested = Signal(str, list)
     status_updated = Signal(str)
+    brgm_load_requested = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -140,10 +141,22 @@ class MarkersTab(QWidget):
             self._poi_dept_combo.addItem(f"{code} — {name}", code)
         self._poi_fetch_button = QPushButton(self.tr("Fetch"))
         self._poi_fetch_button.clicked.connect(self._fetch_poi)
+        self._brgm_overlay_button = QPushButton(self.tr("Show BRGM on map"))
+        self._brgm_overlay_button.clicked.connect(self._request_brgm_overlay)
         form.addRow(self.tr("Source"), self._poi_source_combo)
         form.addRow(self.tr("Department"), self._poi_dept_combo)
-        form.addRow("", self._poi_fetch_button)
+        button_row = QHBoxLayout()
+        button_row.addWidget(self._poi_fetch_button)
+        button_row.addWidget(self._brgm_overlay_button)
+        form.addRow("", button_row)
         return group
+
+    def _request_brgm_overlay(self) -> None:
+        if self._poi_dept_combo is None:
+            return
+        department = self._poi_dept_combo.currentData()
+        if department:
+            self.brgm_load_requested.emit(str(department))
 
     def set_marker_paths(self, paths: list[Path]) -> None:
         """Set marker paths and refresh display."""

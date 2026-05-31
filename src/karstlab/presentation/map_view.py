@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -111,6 +112,37 @@ _CLEAR_DISTANCE_JS = """
 """
 
 
+_INJECT_POI_JS = """
+(function() {
+    var geojson = JSON.parse(__DATA__);
+    var layerName = __LAYER__;
+    var color = __COLOR__;
+    for (var k in window) {
+        try {
+            var m = window[k];
+            if (m && typeof m === 'object' && m._leaflet_id !== undefined
+                    && typeof m.addLayer === 'function') {
+                L.geoJSON(geojson, {
+                    pointToLayer: function(f, ll) {
+                        return L.circleMarker(ll, {
+                            radius: 6, color: color,
+                            fillColor: color, fillOpacity: 0.85, weight: 1
+                        });
+                    },
+                    onEachFeature: function(f, l) {
+                        l.bindTooltip((f.properties && f.properties.name) || 'Cave');
+                        l.bindPopup('<b>' + ((f.properties && f.properties.name) || '')
+                            + '</b><br>' + ((f.properties && f.properties.description) || ''));
+                    }
+                }).addTo(m);
+                break;
+            }
+        } catch (_) {}
+    }
+})();
+"""
+
+
 class MapView(QWidget):
     """Map container using QWebEngineView when available, QTextBrowser otherwise."""
 
@@ -183,6 +215,21 @@ class MapView(QWidget):
     def clear_distance_mode(self) -> None:
         if self._web_view is not None:
             self._web_view.page().runJavaScript(_CLEAR_DISTANCE_JS)
+
+    def inject_poi_layer(
+        self,
+        geojson_str: str,
+        layer_name: str = "BRGM Cavités",
+        color: str = "#dc2626",
+    ) -> None:
+        if self._web_view is None:
+            return
+        script = (
+            _INJECT_POI_JS.replace("__DATA__", json.dumps(geojson_str))
+            .replace("__LAYER__", json.dumps(layer_name))
+            .replace("__COLOR__", json.dumps(color))
+        )
+        self._web_view.page().runJavaScript(script)
 
     def set_empty_state(self) -> None:
         self.set_html(

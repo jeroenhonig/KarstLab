@@ -11,11 +11,38 @@ import pytest
 from karstlab.data.poi import (
     FRENCH_DEPARTMENTS,
     PoiRecord,
+    brgm_cavites_to_geojson,
     fetch_brgm_cavites,
     fetch_poi,
     fetch_spelebase,
 )
 from karstlab.data.schemas import PoiType
+
+
+class TestBrgmCavitesToGeoJson:
+    def test_valid_rfc7946_with_lon_lat_order(self) -> None:
+        records = [
+            PoiRecord(
+                name="Grotte A",
+                lat=44.5,
+                lon=1.25,
+                source="brgm_cavites",
+                description="entrance",
+                external_id="42",
+                poi_type=PoiType.CAVE,
+            )
+        ]
+        result = json.loads(brgm_cavites_to_geojson(records))
+        assert result["type"] == "FeatureCollection"
+        feature = result["features"][0]
+        assert feature["geometry"]["type"] == "Point"
+        assert feature["geometry"]["coordinates"] == [1.25, 44.5]
+        assert feature["properties"]["name"] == "Grotte A"
+        assert feature["properties"]["poi_type"] == "cave"
+
+    def test_empty_records_yield_empty_feature_collection(self) -> None:
+        result = json.loads(brgm_cavites_to_geojson([]))
+        assert result == {"type": "FeatureCollection", "features": []}
 
 
 class TestPoiRecord:

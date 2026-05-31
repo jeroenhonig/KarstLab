@@ -144,6 +144,25 @@ class PoiRecord:
     poi_type: PoiType = PoiType.UNKNOWN
 
 
+def brgm_cavites_to_geojson(records: list[PoiRecord]) -> str:
+    """Convert POI records to an RFC 7946 GeoJSON FeatureCollection string."""
+    features = [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [r.lon, r.lat]},
+            "properties": {
+                "name": r.name,
+                "description": r.description,
+                "external_id": r.external_id,
+                "source": r.source,
+                "poi_type": r.poi_type.value,
+            },
+        }
+        for r in records
+    ]
+    return json.dumps({"type": "FeatureCollection", "features": features})
+
+
 def _validate_department(department: str) -> bool:
     """Check if department code is valid."""
     return department in FRENCH_DEPARTMENTS

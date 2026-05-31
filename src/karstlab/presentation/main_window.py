@@ -6,7 +6,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, QThread, QUrl
+from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QAction, QCloseEvent, QDesktopServices, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -63,6 +63,22 @@ from karstlab.presentation.update_banner import UpdateBanner
 from karstlab.version import __version__
 
 
+class _BrgmOverlayWorker(QObject):
+    """Fetch BRGM cavités off the UI thread for a map overlay."""
+
+    finished = Signal(list)
+
+    def __init__(self, department: str) -> None:
+        super().__init__()
+        self._department = department
+
+    def run(self) -> None:
+        from karstlab.data.poi import fetch_brgm_cavites
+
+        # fetch_brgm_cavites never raises; it returns [] on any failure.
+        self.finished.emit(fetch_brgm_cavites(self._department))
+
+
 class MainWindow(QMainWindow):
     """Map-centric KarstLab main window."""
 
@@ -70,6 +86,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._analysis_runner = analysis_runner
         self._analysis_thread: QThread | None = None
+        self._brgm_thread: QThread | None = None
         self._analysis_worker: AnalysisWorker | None = None
         self._current_result: PipelineResult | None = None
         self._current_project: ProjectFile | None = None
@@ -300,6 +317,7 @@ class MainWindow(QMainWindow):
         self._markers_widget.markers_changed.connect(self._on_markers_changed)
         self._markers_widget.place_on_map_toggled.connect(self._toggle_placement_mode)
         self._markers_widget.gps_marker_add_requested.connect(self._add_gps_marker)
+        self._markers_widget.brgm_load_requested.connect(self._load_brgm_overlay)
         self._markers_widget.gpx_export_save_requested.connect(self._export_markers_gpx)
         self._markers_widget.status_updated.connect(self.statusBar().showMessage)
 
@@ -586,6 +604,40 @@ class MainWindow(QMainWindow):
         else:
             self.map_view.clear_click_handler()
             self.statusBar().showMessage(self.tr("Placement mode off"))
+
+    def _load_brgm_overlay(self, department: str) -> None:
+        if self._brgm_thread is not None and self._brgm_thread.isRunning():
+            return
+        self.statusBar().showMessage(
+            self.tr("Loading BRGM cavités for department {0}…").format(department)
+        )
+        worker = _BrgmOverlayWorker(department)
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.finished.connect(self._on_brgm_loaded)
+        worker.finished.connect(thread.quit)
+        thread.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(self._clear_brgm_thread)
+        self._brgm_thread = thread
+        thread.start()
+
+    def _on_brgm_loaded(self, records: list) -> None:  # type: ignore[type-arg]
+        from karstlab.data.poi import brgm_cavites_to_geojson
+
+        if not records:
+            self.statusBar().showMessage(
+                self.tr("No BRGM cavités found (offline or empty department).")
+            )
+            return
+        self.map_view.inject_poi_layer(brgm_cavites_to_geojson(records))
+        self.statusBar().showMessage(
+            self.tr("Loaded {0} BRGM cavités onto the map.").format(len(records))
+        )
+
+    def _clear_brgm_thread(self) -> None:
+        self._brgm_thread = None
 
     def _toggle_distance_mode(self, active: bool) -> None:
         if active:

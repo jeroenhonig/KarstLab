@@ -62,3 +62,30 @@ def test_map_view_distance_methods_safe_without_webengine(qapp: Any) -> None:
     assert "m.distance(" in _DISTANCE_HANDLER_JS
     assert "_kl_dist_active" in _DISTANCE_HANDLER_JS
     assert "off('click'" in _CLEAR_DISTANCE_JS
+
+
+def test_markers_tab_brgm_overlay_emits_department(qapp: Any) -> None:
+    from karstlab.presentation.markers_tab import MarkersTab
+
+    tab = MarkersTab()
+    emitted: list[str] = []
+    tab.brgm_load_requested.connect(emitted.append)
+
+    assert tab._poi_dept_combo is not None
+    index = tab._poi_dept_combo.findData("06")
+    assert index >= 0
+    tab._poi_dept_combo.setCurrentIndex(index)
+    tab._brgm_overlay_button.click()
+
+    assert emitted == ["06"]
+
+
+def test_map_view_inject_poi_layer_safe_without_webengine(qapp: Any) -> None:
+    from karstlab.presentation.map_view import _INJECT_POI_JS, MapView
+
+    view = MapView()
+    assert view._web_view is None
+    view.inject_poi_layer('{"type":"FeatureCollection","features":[]}')
+
+    assert "L.geoJSON(" in _INJECT_POI_JS
+    assert "__DATA__" in _INJECT_POI_JS

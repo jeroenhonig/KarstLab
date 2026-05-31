@@ -18,7 +18,7 @@ semantics without explicit override from the architect.**
 | F | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Conduit prediction corridor; 20 tests; `make check` passed. See Plan F deviations below. |
 | H | implemented — ready for review | `codex/plan-g-scalability` | Backtest validation; 8 tests; `make check` passed. See Plan H deviations below. |
 | I | implemented — ready for review | `codex/plan-g-scalability` | Distance measurement; client-side Leaflet JS; 3 tests; `make check` passed |
-| J | pending | — | BRGM Cavités overlay (M) |
+| J | implemented — ready for review | `codex/plan-g-scalability` | BRGM Cavités overlay; reuses dept combo (not QLineEdit); 4 tests; `make check` passed |
 | K | pending | — | Extra basemaps + WMS (M) |
 | L | pending | — | Altimetric profile (M-L) |
 
@@ -1291,10 +1291,12 @@ on result call `brgm_cavites_to_geojson()` then `map_view.inject_poi_layer()`.
 ```
 
 **Definition of done:**
-- [ ] Department code input + Load button in markers tab
-- [ ] BRGM points appear as red dots on map after load
-- [ ] Works with cached data (offline fallback)
-- [ ] `make test` passes
+- [x] Department selector + "Show BRGM on map" button in markers tab
+      (reuses the existing dept combo instead of a new QLineEdit — better UX)
+- [x] BRGM points appear as red dots on map after load (`inject_poi_layer`)
+- [x] Works with cached data (offline fallback) — `fetch_brgm_cavites` never raises,
+      empty result reported via status bar
+- [x] `make test` passes (`make check` green)
 
 ---
 
