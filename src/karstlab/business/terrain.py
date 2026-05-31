@@ -168,7 +168,12 @@ def extract_elevation_profile(
         nodata = dataset.nodata
         samples = dataset.sample(np.column_stack([xs, ys]))
         elevations = np.array([float(value[0]) for value in samples], dtype=np.float64)
+        # rasterio.sample() returns 0 (not nodata) for points outside the dataset
+        # when no nodata is set, which would render as spurious sea-level. Mark
+        # every out-of-bounds sample as nan explicitly.
+        outside = (xs < left) | (xs > right) | (ys < bottom) | (ys > top)
 
     if nodata is not None:
         elevations[elevations == nodata] = np.nan
+    elevations[outside] = np.nan
     return distances, elevations

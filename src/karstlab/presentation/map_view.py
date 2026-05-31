@@ -14,16 +14,19 @@ _CLICK_HANDLER_JS = """
 (function() {
     if (window._karstlab_click_active) return;
     window._karstlab_click_active = true;
+    window._kl_marker_handler = function(e) {
+        window.location.href = 'karstlab://addmarker?lat='
+            + e.latlng.lat.toFixed(6) + '&lon='
+            + e.latlng.lng.toFixed(6);
+    };
     for (var k in window) {
         try {
             var o = window[k];
             if (o && typeof o === 'object' && o._leaflet_id !== undefined
                     && typeof o.on === 'function') {
-                o.on('click', function(e) {
-                    window.location.href = 'karstlab://addmarker?lat='
-                        + e.latlng.lat.toFixed(6) + '&lon='
-                        + e.latlng.lng.toFixed(6);
-                });
+                window._kl_marker_map = o;
+                o.on('click', window._kl_marker_handler);
+                break;
             }
         } catch (_) {}
     }
@@ -32,16 +35,14 @@ _CLICK_HANDLER_JS = """
 
 _CLEAR_CLICK_JS = """
 (function() {
-    window._karstlab_click_active = false;
-    for (var k in window) {
-        try {
-            var o = window[k];
-            if (o && typeof o === 'object' && o._leaflet_id !== undefined
-                    && typeof o.off === 'function') {
-                o.off('click');
-            }
-        } catch (_) {}
+    var m = window._kl_marker_map;
+    if (m && window._kl_marker_handler) {
+        // Remove only the marker-placement handler so the distance/profile
+        // tools keep their own click handlers intact.
+        m.off('click', window._kl_marker_handler);
     }
+    window._karstlab_click_active = false;
+    window._kl_marker_handler = null;
 })();
 """
 
@@ -130,9 +131,21 @@ _INJECT_POI_JS = """
                         });
                     },
                     onEachFeature: function(f, l) {
-                        l.bindTooltip((f.properties && f.properties.name) || 'Cave');
-                        l.bindPopup('<b>' + ((f.properties && f.properties.name) || '')
-                            + '</b><br>' + ((f.properties && f.properties.description) || ''));
+                        var p = f.properties || {};
+                        // Build DOM nodes with textContent so external BRGM
+                        // name/description cannot inject HTML into the page.
+                        var tip = document.createElement('span');
+                        tip.textContent = p.name || 'Cave';
+                        l.bindTooltip(tip);
+                        var box = document.createElement('div');
+                        var title = document.createElement('b');
+                        title.textContent = p.name || '';
+                        box.appendChild(title);
+                        if (p.description) {
+                            box.appendChild(document.createElement('br'));
+                            box.appendChild(document.createTextNode(p.description));
+                        }
+                        l.bindPopup(box);
                     }
                 }).addTo(m);
                 break;

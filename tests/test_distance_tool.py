@@ -132,3 +132,27 @@ def test_profile_dialog_builds_with_profile_arrays(qapp: Any) -> None:
 
     dialog = ProfileDialog(distances, elevations, (44.1, 1.2), (44.2, 1.3))
     assert dialog.windowTitle()
+
+
+def test_brgm_overlay_worker_forwards_cache_dir(qapp: Any, monkeypatch: Any, tmp_path: Any) -> None:
+    import karstlab.data.poi as poi
+    from karstlab.presentation.main_window import _BrgmOverlayWorker
+
+    captured: dict[str, Any] = {}
+
+    def fake_fetch(
+        department: str, *, cache_dir: Any = None, timeout: float = 10.0
+    ) -> list[Any]:
+        captured["department"] = department
+        captured["cache_dir"] = cache_dir
+        return []
+
+    monkeypatch.setattr(poi, "fetch_brgm_cavites", fake_fetch)
+
+    worker = _BrgmOverlayWorker("25", cache_dir=tmp_path)
+    results: list[Any] = []
+    worker.finished.connect(results.append)
+    worker.run()
+
+    assert captured == {"department": "25", "cache_dir": tmp_path}
+    assert results == [[]]

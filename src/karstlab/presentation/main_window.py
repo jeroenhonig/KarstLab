@@ -68,15 +68,19 @@ class _BrgmOverlayWorker(QObject):
 
     finished = Signal(list)
 
-    def __init__(self, department: str) -> None:
+    def __init__(self, department: str, cache_dir: Path | None = None) -> None:
         super().__init__()
         self._department = department
+        self._cache_dir = cache_dir
 
     def run(self) -> None:
         from karstlab.data.poi import fetch_brgm_cavites
 
-        # fetch_brgm_cavites never raises; it returns [] on any failure.
-        self.finished.emit(fetch_brgm_cavites(self._department))
+        # fetch_brgm_cavites never raises; it returns [] on any failure. Passing
+        # the project cache dir lets the overlay fall back to cached data offline.
+        self.finished.emit(
+            fetch_brgm_cavites(self._department, cache_dir=self._cache_dir)
+        )
 
 
 class _ProfileWorker(QObject):
@@ -649,7 +653,10 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(
             self.tr("Loading BRGM cavités for department {0}…").format(department)
         )
-        worker = _BrgmOverlayWorker(department)
+        cache_dir = (
+            self._current_project.cache_dir if self._current_project is not None else None
+        )
+        worker = _BrgmOverlayWorker(department, cache_dir=cache_dir)
         thread = QThread(self)
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
@@ -710,11 +717,19 @@ class MainWindow(QMainWindow):
         end = (lat, lon)
         self._profile_p1 = None
 
-        dem_paths = self._resolve_dem_paths()
-        if not dem_paths:
-            self.statusBar().showMessage(self.tr("Select a DEM before drawing a profile."))
+        # Prefer the analysis DEM (VRT/assembled mosaic) produced by the last run so
+        # profiles cover the whole project area, not just the first raw tile.
+        dem_path: Path | None = None
+        if self._current_result is not None and self._current_result.input_dem_paths:
+            dem_path = self._current_result.input_dem_paths[0]
+        if dem_path is None or not dem_path.exists():
+            dem_paths = self._resolve_dem_paths()
+            dem_path = dem_paths[0] if dem_paths else None
+        if dem_path is None:
+            self.statusBar().showMessage(
+                self.tr("Run an analysis or select a DEM before drawing a profile.")
+            )
             return
-        dem_path = dem_paths[0]
         if self._current_project is not None:
             crs = self._current_project.crs_analysis
         else:

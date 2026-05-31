@@ -199,6 +199,31 @@ def test_extract_elevation_profile_marks_outside_samples_nan(tmp_path: Path) -> 
     assert np.isnan(elevations[-1])
 
 
+def test_extract_elevation_profile_outside_is_nan_without_nodata(tmp_path: Path) -> None:
+    # DEM with NO nodata set: rasterio.sample returns 0 outside bounds, which must
+    # be marked nan instead of a spurious sea-level reading.
+    from karstlab.data.raster_io import save_geotiff
+
+    array = np.full((20, 20), 123.0, dtype=np.float32)
+    dem_path = save_geotiff(
+        tmp_path / "no_nodata.tif",
+        array,
+        crs=SYNTHETIC_DEM_CRS,
+        transform=__import__("rasterio").transform.from_origin(700000.0, 6600000.0, 1.0, 1.0),
+        nodata=None,
+    )
+    start = _wgs84_latlon(700010.5, 6599990.5)  # inside
+    end = _wgs84_latlon(900000.0, 6599990.5)  # far outside
+
+    _, elevations = extract_elevation_profile(
+        dem_path, start, end, crs=SYNTHETIC_DEM_CRS, n_samples=5
+    )
+
+    assert elevations[0] == pytest.approx(123.0, abs=1.0)
+    assert np.isnan(elevations[-1])
+    assert not np.any(elevations[1:] == 0.0)  # no spurious sea-level
+
+
 def test_extract_elevation_profile_rejects_fully_outside_line(tmp_path: Path) -> None:
     dem_path = write_synthetic_dem(tmp_path / "dem.tif")
     start = _wgs84_latlon(900000.0, 6599990.5)

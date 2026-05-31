@@ -123,11 +123,11 @@ def _build_geojson(tiles: dict[str, Path]) -> dict[str, Any]:
 # ── Leaflet HTML ─────────────────────────────────────────────────────────────
 _MAP_HTML_TMPL = """\
 <!DOCTYPE html><html><head><meta charset="utf-8"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="LEAFLET_CSS_PLACEHOLDER"/>
+<script src="LEAFLET_JS_PLACEHOLDER"></script>
 <style>
 html,body{margin:0;padding:0;height:100%}
-#map{width:100%;height:100vh}
+#map{width:100%;height:100vh;background:#e5e7eb}
 </style></head><body><div id="map"></div><script>
 var td=GEOJSON_PLACEHOLDER;
 var sel={};var lyr={};
@@ -161,9 +161,29 @@ window.applyClearAll=function(){
 </script></body></html>"""
 
 
+def _leaflet_asset_urls() -> tuple[str, str]:
+    """Return (css_url, js_url) for the vendored Leaflet assets.
+
+    Local files keep the picker working offline / behind CDN-blocking networks;
+    falls back to the unpkg CDN if the vendored copy is missing.
+    """
+    asset_dir = Path(__file__).resolve().parent.parent / "resources" / "leaflet"
+    css = asset_dir / "leaflet.css"
+    js = asset_dir / "leaflet.js"
+    if css.is_file() and js.is_file():
+        return (QUrl.fromLocalFile(str(css)).toString(), QUrl.fromLocalFile(str(js)).toString())
+    return (
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+    )
+
+
 def _render_html(geojson: dict[str, Any], center_lat: float, center_lon: float, zoom: int) -> str:
+    css_url, js_url = _leaflet_asset_urls()
     return (
         _MAP_HTML_TMPL.replace("GEOJSON_PLACEHOLDER", json.dumps(geojson))
+        .replace("LEAFLET_CSS_PLACEHOLDER", css_url)
+        .replace("LEAFLET_JS_PLACEHOLDER", js_url)
         .replace("LAT_PLACEHOLDER", str(round(center_lat, 5)))
         .replace("LON_PLACEHOLDER", str(round(center_lon, 5)))
         .replace("ZOOM_PLACEHOLDER", str(zoom))
