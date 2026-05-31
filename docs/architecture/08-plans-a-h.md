@@ -17,6 +17,10 @@ semantics without explicit override from the architect.**
 | E | pending | — | |
 | F | pending | — | |
 | H | pending | — | |
+| I | pending | — | Distance measurement (S) |
+| J | pending | — | BRGM Cavités overlay (M) |
+| K | pending | — | Extra basemaps + WMS (M) |
+| L | pending | — | Altimetric profile (M-L) |
 
 ---
 
@@ -1040,3 +1044,395 @@ No circular imports. `alignment.py` must not import from `conduit.py` or `backte
    never "50%/80%/95%"
 6. No silent skipping of validation failures — skipped cuts, missing components, orientation
    issues must appear in reports/provenance
+
+---
+
+## Feature Gap Plan — ARIS Lidar Prospector parity (Plans I–L)
+
+These four features bring KarstLab to functional parity with ARIS Lidar Prospector.
+They are independent of plans A–H and can be built after v1.1.0 ships.
+
+**Execution order: I → J → K → L** (ascending complexity, no hard dependencies between them).
+
+**Architecture note:** The map is static Folium HTML saved to disk and loaded via
+`map_view.load_file()` into QWebEngineView. Two patterns are available:
+- **Render-time**: features baked into `render_top_depressions_map_html()` (basemaps, WMS).
+- **Runtime JS injection**: features added after load via `map_view._web_view.page().runJavaScript()`.
+  The Leaflet map object is found via the same `window[k]._leaflet_id` pattern already in
+  `map_view.py` (`_CLICK_HANDLER_JS`).
+
+---
+
+### Plan I — Distance Measurement
+
+**Complexity:** S
+
+**Files (modified):**
+- `src/karstlab/presentation/map_view.py`
+- `src/karstlab/presentation/tools_tab.py`
+- `src/karstlab/presentation/main_window.py`
+
+**No new files. No new dependencies.**
+
+**Approach:** Pure client-side JS. Leaflet has `map.distance(latlng1, latlng2)` built in.
+No Python round-trip needed.
+
+```python
+# map_view.py — new JS snippets
+_DISTANCE_HANDLER_JS = """
+(function() {
+    if (window._kl_dist_active) return;
+    window._kl_dist_active = true;
+    window._kl_dist_p1 = null;
+    for (var k in window) {
+        try {
+            var m = window[k];
+            if (m && m._leaflet_id && m.on) {
+                window._kl_dist_map = m;
+                m.on('click', function(e) {
+                    if (!window._kl_dist_p1) {
+                        window._kl_dist_p1 = e.latlng;
+                        window._kl_dist_marker = L.circleMarker(e.latlng,
+                            {radius:5,color:'#f59e0b'}).addTo(m);
+                    } else {
+                        var d = m.distance(window._kl_dist_p1, e.latlng);
+                        L.polyline([window._kl_dist_p1, e.latlng],
+                            {color:'#f59e0b',dashArray:'6'}).addTo(m);
+                        L.popup().setLatLng(e.latlng)
+                            .setContent('<b>' + (d >= 1000
+                                ? (d/1000).toFixed(2) + ' km'
+                                : Math.round(d) + ' m') + '</b>')
+                            .openOn(m);
+                        window._kl_dist_p1 = null;
+                        if (window._kl_dist_marker) { window._kl_dist_marker.remove(); }
+                    }
+                });
+                break;
+            }
+        } catch(_) {}
+    }
+})();
+"""
+```
+
+**New methods on `MapView`:**
+```python
+def start_distance_mode(self) -> None: ...   # injects _DISTANCE_HANDLER_JS
+def clear_distance_mode(self) -> None: ...   # resets _kl_dist_active, removes line/marker
+```
+
+**`tools_tab.py`:** Add "Measure distance" toggle button, emit `distance_mode_toggled = Signal(bool)`.
+
+**`main_window.py`:** Connect signal to `map_view.start_distance_mode()` /
+`clear_distance_mode()`. Also call `clear_distance_mode()` on analysis start.
+
+**Definition of done:**
+- [ ] Click 1 places yellow dot, click 2 shows polyline + popup with distance
+- [ ] Toggle off removes line and resets state
+- [ ] `make test` passes
+
+---
+
+### Plan J — BRGM Cavités Overlay
+
+**Complexity:** M
+
+**Files (modified):**
+- `src/karstlab/data/poi.py`
+- `src/karstlab/presentation/map_view.py`
+- `src/karstlab/presentation/markers_tab.py`
+- `src/karstlab/presentation/main_window.py`
+
+**No new files. No new dependencies.**
+`poi.py` already has `fetch_brgm_cavites()` with caching.
+
+**New function in `poi.py`:**
+```python
+def brgm_cavites_to_geojson(records: list[PoiRecord]) -> str:
+    """Convert PoiRecord list to RFC 7946 GeoJSON FeatureCollection string."""
+    features = [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [r.lon, r.lat]},
+            "properties": {
+                "name": r.name,
+                "description": r.description,
+                "external_id": r.external_id,
+                "source": r.source,
+            },
+        }
+        for r in records
+    ]
+    return json.dumps({"type": "FeatureCollection", "features": features})
+```
+
+**New method on `MapView`:**
+```python
+_INJECT_POI_JS_TEMPLATE = """
+(function(data, layerName, color) {{
+    var geojson = JSON.parse(data);
+    for (var k in window) {{
+        try {{
+            var m = window[k];
+            if (m && m._leaflet_id && m.addLayer) {{
+                L.geoJSON(geojson, {{
+                    pointToLayer: function(f, ll) {{
+                        return L.circleMarker(ll, {{
+                            radius:6, color:color,
+                            fillColor:color, fillOpacity:0.85, weight:1
+                        }});
+                    }},
+                    onEachFeature: function(f, l) {{
+                        l.bindTooltip(f.properties.name || 'Cave');
+                        l.bindPopup('<b>'+(f.properties.name||'')+'</b><br>'
+                            +(f.properties.description||''));
+                    }}
+                }}).addTo(m);
+                break;
+            }}
+        }} catch(_) {{}}
+    }}
+}})({geojson!r}, {layer_name!r}, {color!r});
+"""
+
+def inject_poi_layer(
+    self,
+    geojson_str: str,
+    layer_name: str = "BRGM Cavités",
+    color: str = "#dc2626",
+) -> None: ...
+```
+
+**`markers_tab.py`:** Add BRGM section: `QLineEdit` for department code (e.g. "25"),
+"Load" button, status label. Emit `brgm_load_requested = Signal(str)`.
+
+**`main_window.py`:** On `brgm_load_requested`: run `fetch_brgm_cavites()` in `QRunnable`,
+on result call `brgm_cavites_to_geojson()` then `map_view.inject_poi_layer()`.
+`fetch_brgm_cavites()` never raises — handle empty result with status label update.
+
+**Tests:**
+```
+(a) brgm_cavites_to_geojson() → valid RFC 7946, coordinates [lon, lat] order
+(b) Empty records → valid FeatureCollection with empty features array
+```
+
+**Definition of done:**
+- [ ] Department code input + Load button in markers tab
+- [ ] BRGM points appear as red dots on map after load
+- [ ] Works with cached data (offline fallback)
+- [ ] `make test` passes
+
+---
+
+### Plan K — Extra Basemaps + WMS Overlays
+
+**Complexity:** M
+
+**Files (modified):**
+- `src/karstlab/presentation/map_builder.py`
+- `src/karstlab/data/schemas.py`
+- `src/karstlab/resources/regions/fr.json`
+- `src/karstlab/business/pipeline.py`
+
+**No new files. No new dependencies** (`folium.raster_layers.WmsTileLayer` is part of folium).
+
+**Approach:** Render-time. All basemaps baked in as Folium TileLayers at map generation.
+LayerControl shows them as radio buttons. WMS layers added as Folium WmsTileLayer overlays.
+
+**New dataclasses (in `schemas.py` or `map_builder.py`):**
+```python
+@dataclass(frozen=True)
+class TileLayerSpec:
+    name: str
+    url: str          # XYZ template: {z}/{x}/{y}
+    attribution: str
+    show: bool = False
+
+@dataclass(frozen=True)
+class WmsLayerSpec:
+    name: str
+    url: str
+    layers: str       # WMS layer name(s)
+    attribution: str
+    fmt: str = "image/png"
+    transparent: bool = True
+    version: str = "1.3.0"
+    show: bool = False
+```
+
+**`map_builder.py` signature extension:**
+```python
+def build_top_depressions_map(
+    depressions: ...,
+    *,
+    extra_tile_layers: Sequence[TileLayerSpec] = (),
+    wms_layers: Sequence[WmsLayerSpec] = (),
+    ...
+) -> folium.Map:
+    ...
+    for spec in extra_tile_layers:
+        folium.TileLayer(
+            tiles=spec.url, attr=spec.attribution,
+            name=spec.name, show=spec.show, overlay=False,
+        ).add_to(folium_map)
+
+    for spec in wms_layers:
+        folium.raster_layers.WmsTileLayer(
+            url=spec.url, layers=spec.layers,
+            name=spec.name, fmt=spec.fmt,
+            transparent=spec.transparent, version=spec.version,
+            show=spec.show, overlay=True,
+        ).add_to(folium_map)
+```
+
+**`fr.json` additions:**
+```json
+"extra_tile_layers": [
+  {
+    "name": "IGN Plan",
+    "url": "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+    "attribution": "© IGN",
+    "show": false
+  },
+  {
+    "name": "IGN Satellite",
+    "url": "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+    "attribution": "© IGN",
+    "show": false
+  },
+  {
+    "name": "Cadastre",
+    "url": "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+    "attribution": "© IGN",
+    "show": false
+  }
+],
+"wms_layers": [
+  {
+    "name": "BRGM Géologique 50k",
+    "url": "https://geoservices.brgm.fr/geologie",
+    "layers": "SCAN_H_GEOL50",
+    "attribution": "© BRGM",
+    "show": false
+  },
+  {
+    "name": "Zones karstiques BDLISA",
+    "url": "https://bdlisa.eaufrance.fr/geoserver/ows",
+    "layers": "secteurs_karstiques",
+    "attribution": "© OFB / BRGM",
+    "show": false
+  }
+]
+```
+
+**NOTE:** Verify WMTS URL format (`TILEMATRIXSET=PM`) and WMS endpoint URLs before
+release — public endpoints but subject to change. Confirm `TILEMATRIXSET=PM` is compatible
+with Leaflet/Folium default tile matrix.
+
+**Tests (`tests/test_map_builder.py`, new cases):**
+```
+(a) extra_tile_layers → tile URLs appear in rendered HTML
+(b) wms_layers → WMS URL appears in rendered HTML with correct layer name
+(c) overlay=False for tile layers, overlay=True for WMS layers
+```
+
+**Definition of done:**
+- [ ] Extra basemaps visible as radio buttons in map LayerControl
+- [ ] WMS overlays visible as checkboxes in map LayerControl
+- [ ] `make test` passes
+
+---
+
+### Plan L — Altimetric Profile
+
+**Complexity:** M-L
+
+**Files (new):**
+- `src/karstlab/presentation/profile_dialog.py`
+
+**Files (modified):**
+- `src/karstlab/business/terrain.py`
+- `src/karstlab/presentation/map_view.py`
+- `src/karstlab/presentation/tools_tab.py`
+- `src/karstlab/presentation/main_window.py`
+
+**No new dependencies.** `matplotlib` already in stack; `FigureCanvas` available via
+`matplotlib.backends.backend_qtagg` (PySide6 environment).
+
+**New function in `terrain.py`:**
+```python
+def extract_elevation_profile(
+    dem_path: Path,
+    start: tuple[float, float],   # (lat, lon) WGS84
+    end: tuple[float, float],     # (lat, lon) WGS84
+    *,
+    crs: CRS | str,
+    n_samples: int = 256,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Sample DEM along a geodetic great-circle line.
+
+    Returns (distances_m, elevations_m). distances_m[0] == 0.
+    Uses pyproj.Geod for geodetic distance + interpolated projected coordinates
+    for rasterio.DatasetReader.sample(). Nodata → nan in elevations_m.
+    Raises ValueError if both endpoints are outside the DEM bounds.
+    """
+```
+
+**`map_view.py` URL scheme extension:**
+```python
+# In acceptNavigationRequest, add alongside "addmarker":
+if url.scheme() == "karstlab" and url.host() == "profile":
+    q = QUrlQuery(url.query())
+    try:
+        lat = float(q.queryItemValue("lat"))
+        lon = float(q.queryItemValue("lon"))
+        outer.profile_point_placed.emit(lat, lon)
+    except ValueError:
+        pass
+    return False
+```
+
+New signal: `profile_point_placed = Signal(float, float)`
+
+New methods:
+```python
+def start_profile_mode(self) -> None: ...   # 2-click JS, sends karstlab://profile?...
+def clear_profile_mode(self) -> None: ...
+```
+
+**`main_window.py`:** On `profile_point_placed`: store point 1, on point 2 run
+`extract_elevation_profile()` in `QRunnable` (with current project's DEM path and CRS),
+open `ProfileDialog` with result. Call `clear_profile_mode()` after dialog closes.
+
+**`profile_dialog.py`:**
+```python
+class ProfileDialog(QDialog):
+    def __init__(
+        self,
+        distances: np.ndarray,    # metres from start
+        elevations: np.ndarray,   # metres ASL, may contain nan
+        start: tuple[float, float],
+        end: tuple[float, float],
+        *,
+        parent: QWidget | None = None,
+    ) -> None:
+        # matplotlib FigureCanvas in QVBoxLayout
+        # x-axis: distance (m or km), y-axis: elevation (m)
+        # fill_between for visual area under profile
+        # title: start/end WGS84 coordinates, total distance
+```
+
+**Tests (`tests/test_terrain.py`, new cases):**
+```
+(a) extract_elevation_profile on synthetic DEM → len(distances) == n_samples
+(b) distances[0] == 0, distances[-1] == total_geodetic_distance ± 1%
+(c) Known elevated point in DEM → elevations at that location correct ± 1 m
+(d) Endpoint outside DEM bounds → elevations at that sample are nan, no crash
+```
+
+**Definition of done:**
+- [ ] Profile tool toggle in tools tab
+- [ ] Click 1 places yellow dot, click 2 shows ProfileDialog with matplotlib chart
+- [ ] Profile samples DEM correctly including nodata handling
+- [ ] `make test` passes
