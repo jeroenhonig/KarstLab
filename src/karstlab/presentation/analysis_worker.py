@@ -16,8 +16,14 @@ from karstlab.data.schemas import AnalysisParams, PipelineResult, ProjectFile
 AnalysisRunner = Callable[[ProjectFile, Callable[[str], None] | None], PipelineResult]
 
 
-class AnalysisCancelled(RuntimeError):
-    """Raised when the GUI requests cooperative analysis cancellation."""
+class AnalysisCancelled(BaseException):
+    """Raised when the GUI requests cooperative analysis cancellation.
+
+    Subclasses ``BaseException`` (not ``Exception``) so the broad
+    ``except Exception`` / ``except RuntimeError`` guards in the business
+    pipeline (e.g. the WhiteboxTools fill fallback) do not swallow it — a
+    cancel must propagate straight up to ``run()``.
+    """
 
 
 class AnalysisWorker(QObject):
@@ -26,6 +32,7 @@ class AnalysisWorker(QObject):
     progress = Signal(str)
     finished = Signal(object, object)
     failed = Signal(str)
+    cancelled = Signal()
 
     def __init__(
         self,
@@ -80,6 +87,10 @@ class AnalysisWorker(QObject):
                     }
                 )
             )
+        except AnalysisCancelled:
+            # User-requested stop — not an error; report a clean cancellation.
+            self.cancelled.emit()
+            return
         except Exception as exc:  # noqa: BLE001 - surfaced as actionable GUI failure text.
             log_path = _write_failure_log(
                 project=project,

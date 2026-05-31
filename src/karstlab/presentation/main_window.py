@@ -568,8 +568,10 @@ class MainWindow(QMainWindow):
         worker.progress.connect(self._on_progress)
         worker.finished.connect(self._on_analysis_finished)
         worker.failed.connect(self._on_analysis_failed)
+        worker.cancelled.connect(self._on_analysis_cancelled)
         worker.finished.connect(thread.quit)
         worker.failed.connect(thread.quit)
+        worker.cancelled.connect(thread.quit)
         thread.finished.connect(worker.deleteLater)
         thread.finished.connect(thread.deleteLater)
         thread.finished.connect(self._clear_worker)
@@ -624,6 +626,13 @@ class MainWindow(QMainWindow):
         self._tools_widget.set_status(self.tr("Analysis failed"))
         self.statusBar().showMessage(self.tr("Analysis failed"))
         QMessageBox.critical(self, self.tr("Analysis failed"), message)
+
+    def _on_analysis_cancelled(self) -> None:
+        self._tools_widget.set_progress(0)
+        self._tools_widget.set_analyze_enabled(True)
+        self._tools_widget.set_cancel_enabled(False)
+        self._tools_widget.set_status(self.tr("Analysis cancelled"))
+        self.statusBar().showMessage(self.tr("Analysis cancelled"))
 
     def _clear_worker(self) -> None:
         self._analysis_thread = None

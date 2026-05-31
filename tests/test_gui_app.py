@@ -158,6 +158,39 @@ def test_analysis_worker_logs_failure(tmp_path: Path) -> None:
     assert "RuntimeError: synthetic failure" in log_path.read_text(encoding="utf-8")
 
 
+def test_analysis_worker_routes_cancel_to_cancelled_not_failed(tmp_path: Path) -> None:
+    from karstlab.presentation.analysis_worker import AnalysisCancelled
+    from karstlab.presentation.main_window import AnalysisWorker
+
+    def cancelling_runner(_project: Any, _callback: Any) -> Any:
+        raise AnalysisCancelled("Analysis cancelled by user")
+
+    worker = AnalysisWorker(
+        dem_paths=[tmp_path / "dem.tif"],
+        project_base_dir=tmp_path,
+        project_name="Cancel Project",
+        profile_id="generic",
+        analysis_params=AnalysisParams(),
+        runner=cancelling_runner,
+    )
+    events: list[str] = []
+    worker.cancelled.connect(lambda: events.append("cancelled"))
+    worker.failed.connect(lambda message: events.append(f"failed:{message}"))
+
+    worker.run()
+
+    assert events == ["cancelled"]
+
+
+def test_analysis_cancelled_is_not_swallowed_by_runtimeerror_guards() -> None:
+    # Cooperative cancel must bypass `except Exception/RuntimeError` in the
+    # business pipeline, so it derives from BaseException, not Exception.
+    from karstlab.presentation.analysis_worker import AnalysisCancelled
+
+    assert issubclass(AnalysisCancelled, BaseException)
+    assert not issubclass(AnalysisCancelled, Exception)
+
+
 def test_progress_percent_parser_handles_edge_inputs() -> None:
     from karstlab.presentation.main_window import _progress_value
 
