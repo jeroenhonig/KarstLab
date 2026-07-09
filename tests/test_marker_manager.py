@@ -452,3 +452,17 @@ class TestManualMarkerDataclass:
         marker2 = ManualMarker(name="Test2", lat=44.0, lon=1.0)
 
         assert marker1 != marker2
+
+
+def test_imported_marker_color_is_deterministic_and_overridable() -> None:
+    from karstlab.business.marker_manager import imported_marker_color
+
+    # Same file name → same colour across calls (never random per analysis).
+    assert imported_marker_color("Fourbanne.kml") == imported_marker_color("Fourbanne.kml")
+    # Different files generally differ.
+    assert imported_marker_color("a.kml") != imported_marker_color("b.kml")
+    # Valid hex.
+    color = imported_marker_color("a.kml")
+    assert color.startswith("#") and len(color) == 7
+    # Explicit override wins.
+    assert imported_marker_color("a.kml", {"a.kml": "#123456"}) == "#123456"

@@ -1,0 +1,720 @@
+<?xml version='1.0' encoding="UTF-8" standalone="no" ?>
+<WMS_Capabilities version="1.3.0"  xmlns="http://www.opengis.net/wms"   xmlns:sld="http://www.opengis.net/sld"   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"   xmlns:ms="http://mapserver.gis.umn.edu/mapserver"   xsi:schemaLocation="http://www.opengis.net/wms http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd  http://www.opengis.net/sld http://schemas.opengis.net/sld/1.1.0/sld_capabilities.xsd  http://mapserver.gis.umn.edu/mapserver http://services.sandre.eaufrance.fr/geo/eth_FXX?service=WMS&amp;version=1.3.0&amp;request=GetSchemaExtension">
+
+<!-- MapServer version 8.0.0 OUTPUT=PNG OUTPUT=JPEG OUTPUT=KML SUPPORTS=PROJ SUPPORTS=AGG SUPPORTS=FREETYPE SUPPORTS=CAIRO SUPPORTS=ICONV SUPPORTS=FRIBIDI SUPPORTS=WMS_SERVER SUPPORTS=WFS_SERVER SUPPORTS=WCS_SERVER SUPPORTS=SOS_SERVER SUPPORTS=OGCAPI_SERVER SUPPORTS=FASTCGI SUPPORTS=GEOS SUPPORTS=PBF INPUT=JPEG INPUT=POSTGIS INPUT=OGR INPUT=GDAL INPUT=SHAPEFILE INPUT=FLATGEOBUF -->
+
+<Service>
+  <Name>WMS</Name>
+  <Title>Référentiel hydrographique Métropole</Title>
+  <Abstract>Le Sandre (Service d&#39;Administration Nationale des Données et Référentiels sur l&#39;Eau) met à disposition le référentiel hydrographique  national.</Abstract>
+  <KeywordList>
+      <Keyword>eau</Keyword>
+      <Keyword>eth</Keyword>
+      <Keyword> référentiels</Keyword>
+      <Keyword> hydrographique</Keyword>
+      <Keyword> cours d&#39;eau</Keyword>
+      <Keyword> plan d&#39;eau</Keyword>
+      <Keyword> tronçon hydrographique</Keyword>
+      <Keyword> limite des eaux</Keyword>
+      <Keyword> FRANCE</Keyword>
+      <Keyword> METROPOLE</Keyword>
+      <Keyword> GUADELOUPE</Keyword>
+      <Keyword> MARTINIQUE</Keyword>
+      <Keyword> REUNION</Keyword>
+      <Keyword> GUYANE</Keyword>
+      <Keyword> MAYOTTE</Keyword>
+      <Keyword>eau de surface </Keyword>
+      <Keyword>référentiels</Keyword>
+      <Keyword> eth</Keyword>
+      <Keyword>sie</Keyword>
+      <Keyword>hydrographie</Keyword>
+      <Keyword>hydrogéologie</Keyword>
+      <Keyword>dce</Keyword>
+      <Keyword>sandre</Keyword>
+  </KeywordList>
+  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.sandre.eaufrance.fr"/>
+  <ContactInformation>
+    <ContactPersonPrimary>
+      <ContactPerson>Contact SANDRE</ContactPerson>
+      <ContactOrganization>Office International de l&#39;eau / SANDRE</ContactOrganization>
+    </ContactPersonPrimary>
+      <ContactPosition>Ingénieur SIG</ContactPosition>
+    <ContactAddress>
+        <AddressType>postal</AddressType>
+        <Address>15 rue Edouard Chamberland</Address>
+        <City>LIMOGES</City>
+        <StateOrProvince>HAUTE-VIENNE</StateOrProvince>
+        <PostCode>87065</PostCode>
+        <Country>FRANCE</Country>
+    </ContactAddress>
+      <ContactVoiceTelephone>+33555113111</ContactVoiceTelephone>
+      <ContactFacsimileTelephone>+33555114748</ContactFacsimileTelephone>
+  <ContactElectronicMailAddress>sandre@sandre.eaufrance.fr</ContactElectronicMailAddress>
+  </ContactInformation>
+  <Fees>none</Fees>
+  <AccessConstraints>none</AccessConstraints>
+  <MaxWidth>4096</MaxWidth>
+  <MaxHeight>4096</MaxHeight>
+</Service>
+
+<Capability>
+  <Request>
+    <GetCapabilities>
+      <Format>text/xml</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?"/></Get>
+          <Post><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?"/></Post>
+        </HTTP>
+      </DCPType>
+    </GetCapabilities>
+    <GetMap>
+      <Format>image/png</Format>
+      <Format>application/x-pdf</Format>
+      <Format>image/tiff</Format>
+      <Format>application/json</Format>
+      <Format>image/jpeg</Format>
+      <Format>image/png; mode=8bit</Format>
+      <Format>image/vnd.jpeg-png</Format>
+      <Format>image/vnd.jpeg-png8</Format>
+      <Format>image/svg+xml</Format>
+      <Format>application/vnd.google-earth.kml+xml</Format>
+      <Format>application/vnd.google-earth.kmz</Format>
+      <Format>application/vnd.mapbox-vector-tile</Format>
+      <Format>application/x-protobuf</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?"/></Get>
+          <Post><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?"/></Post>
+        </HTTP>
+      </DCPType>
+    </GetMap>
+    <GetFeatureInfo>
+      <Format>application/vnd.ogc.gml</Format>
+      <Format>text/html</Format>
+      <Format>text/xml</Format>
+      <Format>text/plain</Format>
+      <Format>geojson</Format>
+      <Format>application/vnd.google-earth.kml.xml</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?"/></Get>
+          <Post><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?"/></Post>
+        </HTTP>
+      </DCPType>
+    </GetFeatureInfo>
+    <sld:DescribeLayer>
+      <Format>text/xml</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?"/></Get>
+          <Post><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?"/></Post>
+        </HTTP>
+      </DCPType>
+    </sld:DescribeLayer>
+    <sld:GetLegendGraphic>
+      <Format>image/png</Format>
+      <Format>image/jpeg</Format>
+      <Format>image/png; mode=8bit</Format>
+      <Format>image/vnd.jpeg-png</Format>
+      <Format>image/vnd.jpeg-png8</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?"/></Get>
+          <Post><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?"/></Post>
+        </HTTP>
+      </DCPType>
+    </sld:GetLegendGraphic>
+    <ms:GetStyles>
+      <Format>text/xml</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?"/></Get>
+          <Post><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?"/></Post>
+        </HTTP>
+      </DCPType>
+    </ms:GetStyles>
+  </Request>
+  <Exception>
+    <Format>XML</Format>
+    <Format>INIMAGE</Format>
+    <Format>BLANK</Format>
+  </Exception>
+  <sld:UserDefinedSymbolization SupportSLD="1" UserLayer="0" UserStyle="1" RemoteWFS="0" InlineFeature="0" RemoteWCS="0"/>
+  <Layer queryable="1">
+    <Name>services.sandre.eaufrance.fr:eth_FXX</Name>
+    <Title>Référentiel hydrographique Métropole</Title>
+    <Abstract>Le Sandre (Service d&#39;Administration Nationale des Données et Référentiels sur l&#39;Eau) met à disposition le référentiel hydrographique  national.</Abstract>
+    <KeywordList>
+        <Keyword>eau</Keyword>
+        <Keyword>eth</Keyword>
+        <Keyword> référentiels</Keyword>
+        <Keyword> hydrographique</Keyword>
+        <Keyword> cours d&#39;eau</Keyword>
+        <Keyword> plan d&#39;eau</Keyword>
+        <Keyword> tronçon hydrographique</Keyword>
+        <Keyword> limite des eaux</Keyword>
+        <Keyword> FRANCE</Keyword>
+        <Keyword> METROPOLE</Keyword>
+        <Keyword> GUADELOUPE</Keyword>
+        <Keyword> MARTINIQUE</Keyword>
+        <Keyword> REUNION</Keyword>
+        <Keyword> GUYANE</Keyword>
+        <Keyword> MAYOTTE</Keyword>
+        <Keyword>eau de surface </Keyword>
+        <Keyword>référentiels</Keyword>
+        <Keyword> eth</Keyword>
+        <Keyword>sie</Keyword>
+        <Keyword>hydrographie</Keyword>
+        <Keyword>hydrogéologie</Keyword>
+        <Keyword>dce</Keyword>
+        <Keyword>sandre</Keyword>
+    </KeywordList>
+    <CRS>EPSG:4326</CRS>
+    <CRS>EPSG:2154</CRS>
+    <CRS>EPSG:32620</CRS>
+    <CRS>EPSG:2972</CRS>
+    <CRS>EPSG:2975</CRS>
+    <CRS>EPSG:4471</CRS>
+    <CRS>EPSG:4467</CRS>
+    <CRS>EPSG:27572</CRS>
+    <CRS>EPSG:32622</CRS>
+    <CRS>EPSG:32738</CRS>
+    <CRS>EPSG:32740</CRS>
+    <CRS>EPSG:3857</CRS>
+    <CRS>EPSG:900913</CRS>
+    <CRS>EPSG:4171</CRS>
+    <CRS>EPSG:4258</CRS>
+    <CRS>EPSG:5490</CRS>
+    <EX_GeographicBoundingBox>
+        <westBoundLongitude>-6.000000</westBoundLongitude>
+        <eastBoundLongitude>10.000000</eastBoundLongitude>
+        <southBoundLatitude>41.000000</southBoundLatitude>
+        <northBoundLatitude>52.000000</northBoundLatitude>
+    </EX_GeographicBoundingBox>
+    <BoundingBox CRS="EPSG:4326"
+                minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>PlanEau_FXX</Name>
+        <Title>Plans d&#39;eau métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=PlanEau_FXX"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>PlanEau</Name>
+        <Title>Plans d&#39;eau métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=PlanEau"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>CoursEau</Name>
+        <Title>Cours d&#39;eau Metropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=CoursEau"/>
+        </MetadataURL>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="165" height="23">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic&amp;sld_version=1.1.0&amp;layer=CoursEau&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>CoursEau1</Name>
+        <Title>Cours d&#39;eau métropole de plus de 100km</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=CoursEau1"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>CoursEau2</Name>
+        <Title>Cours d&#39;eau métropole de 50 à 100km</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=CoursEau2"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>CoursEau3</Name>
+        <Title>Cours d&#39;eau métropole de 25 à 50km</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=CoursEau3"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>CoursEau4</Name>
+        <Title>Cours d&#39;eau métropole de 10 à 25km</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=CoursEau4"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>CoursEau5</Name>
+        <Title>Cours d&#39;eau métropole de 5 à 10km</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=CoursEau5"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>CoursEau6</Name>
+        <Title>Cours d&#39;eau métropole inf. à 5km</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=CoursEau6"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>CoursEau7</Name>
+        <Title>Cours d&#39;eau métropole issus densification réseau</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=CoursEau7"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>RegionHydro</Name>
+        <Title>Régions hydrographiques métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=RegionHydro"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>SecteurHydro</Name>
+        <Title>Secteurs hydrographiques métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=SecteurHydro"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>SousSecteurHydro</Name>
+        <Title>Sous-secteurs hydrographiques métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=SousSecteurHydro"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>ZoneHydro</Name>
+        <Title>Zones hydrographiques métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=ZoneHydro"/>
+        </MetadataURL>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>LaisseEaux_BassesEaux</Name>
+        <Title>Laisse des plus basses eaux</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=LaisseEaux_BassesEaux"/>
+        </MetadataURL>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="198" height="23">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic&amp;sld_version=1.1.0&amp;layer=LaisseEaux_BassesEaux&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>LaisseEaux_HautesEaux</Name>
+        <Title>Laisse des plus hautes eaux</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=LaisseEaux_HautesEaux"/>
+        </MetadataURL>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="198" height="23">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic&amp;sld_version=1.1.0&amp;layer=LaisseEaux_HautesEaux&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>LaisseEaux</Name>
+        <Title>Laisses des eaux Métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=LaisseEaux"/>
+        </MetadataURL>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="102" height="22">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic&amp;sld_version=1.1.0&amp;layer=LaisseEaux&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>Limite300m</Name>
+        <Title>Limite des 300 m</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=Limite300m"/>
+        </MetadataURL>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="135" height="22">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic&amp;sld_version=1.1.0&amp;layer=Limite300m&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>Limite1Nq</Name>
+        <Title>Limite des 1 mille</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=Limite1Nq"/>
+        </MetadataURL>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="137" height="22">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic&amp;sld_version=1.1.0&amp;layer=Limite1Nq&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>TronconHydrographique</Name>
+        <Title>Tronçons hydrographiques Circulaire Métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=TronconHydrographique"/>
+        </MetadataURL>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="312" height="23">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic&amp;sld_version=1.1.0&amp;layer=TronconHydrographique&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>TronconHydrograElt</Name>
+        <Title>Tronçons hydrographiques Métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=TronconHydrograElt"/>
+        </MetadataURL>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="252" height="23">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic&amp;sld_version=1.1.0&amp;layer=TronconHydrograElt&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>PointEauIsole</Name>
+        <Title>Points d&#39;eau isolés Métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=PointEauIsole"/>
+        </MetadataURL>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="204" height="23">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic&amp;sld_version=1.1.0&amp;layer=PointEauIsole&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>NoeudHydrographique</Name>
+        <Title>Noeuds hydrographiques Métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=NoeudHydrographique"/>
+        </MetadataURL>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="243" height="23">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic&amp;sld_version=1.1.0&amp;layer=NoeudHydrographique&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>ZoneHydroTexture</Name>
+        <Title>Zones d&#39;hydrographie de texture Métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=ZoneHydroTexture"/>
+        </MetadataURL>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="289" height="23">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic&amp;sld_version=1.1.0&amp;layer=ZoneHydroTexture&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>EltHydroSurface</Name>
+        <Title>Elements hydrographiques de surface Métropole</Title>
+        <CRS>EPSG:4326</CRS>
+        <EX_GeographicBoundingBox>
+            <westBoundLongitude>-6.000000</westBoundLongitude>
+            <eastBoundLongitude>10.000000</eastBoundLongitude>
+            <southBoundLatitude>41.000000</southBoundLatitude>
+            <northBoundLatitude>52.000000</northBoundLatitude>
+        </EX_GeographicBoundingBox>
+        <BoundingBox CRS="EPSG:4326"
+                    minx="41.000000" miny="-6.000000" maxx="52.000000" maxy="10.000000" />
+        <MetadataURL type="TC211">
+          <Format>text/xml</Format>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?request=GetMetadata&amp;layer=EltHydroSurface"/>
+        </MetadataURL>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="319" height="23">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://services.sandre.eaufrance.fr/geo/eth_FXX?version=1.3.0&amp;service=WMS&amp;request=GetLegendGraphic&amp;sld_version=1.1.0&amp;layer=EltHydroSurface&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+  </Layer>
+</Capability>
+</WMS_Capabilities>

@@ -70,6 +70,22 @@ class TestToolsTab:
         tab.set_project_dir(tmp_path)
         assert tab.project_dir() == tmp_path
 
+    def test_caveline_path_round_trips(self, tab: Any, tmp_path: Path) -> None:
+        assert tab.caveline_path() is None  # optional, empty by default
+        survey = tmp_path / "survey.gpx"
+        tab.set_caveline_path(survey)
+        assert tab.caveline_path() == survey
+        assert tab._caveline_edit.text() == survey.name
+        tab._clear_caveline()
+        assert tab.caveline_path() is None
+
+    def test_caveline_direction_round_trips(self, tab: Any) -> None:
+        assert tab.caveline_downstream_end() == "first"  # default
+        tab.set_caveline_downstream_end("last")
+        assert tab.caveline_downstream_end() == "last"
+        tab.set_caveline_downstream_end("first")
+        assert tab.caveline_downstream_end() == "first"
+
     def test_analyze_button_is_primary_style(self, tab: Any) -> None:
         assert tab._analyze_button.objectName() == "primaryButton"
 
@@ -199,6 +215,21 @@ class TestResultsTab:
         tab.display_results(result)
         assert tab._table.rowCount() == 2
 
+    def test_fault_distance_column_present_and_filled(self, tab: Any) -> None:
+        from karstlab.data.schemas import DepressionResult
+
+        dep = DepressionResult.model_validate({
+            "id": "d1", "rank": 1, "max_depth_m": 5.0, "area_m2": 100.0,
+            "centroid": {"lat": 44.1, "lon": 1.2},
+            "geometry": {"type": "Polygon",
+                "coordinates": [[[1.19, 44.09], [1.21, 44.09], [1.21, 44.11], [1.19, 44.09]]]},
+            "distance_to_fault_m": 123.4,
+        })
+        tab.display_results([dep])
+        assert tab._table.columnCount() == 7
+        # Fault distance is column 4, shown as a rounded number.
+        assert tab._table.item(0, 4).text() in ("123", "123.0")
+
     def test_quality_flags_column_shows_edge_warning(self, tab: Any) -> None:
         from karstlab.data.schemas import DepressionResult
         depression = DepressionResult.model_validate({
@@ -251,6 +282,20 @@ class TestMarkersTab:
 
     def test_initial_marker_paths_empty(self, tab: Any) -> None:
         assert tab.marker_paths() == []
+
+    def test_geodata_layers_populate_and_enable(self, tab: Any) -> None:
+        assert not tab._geodata_combo.isEnabled()  # empty by default
+        tab.set_geodata_layers(["BSS Eau (springs/boreholes)"])
+        assert tab._geodata_combo.isEnabled()
+        assert tab._geodata_button.isEnabled()
+        assert tab._geodata_combo.itemText(0) == "BSS Eau (springs/boreholes)"
+
+    def test_geodata_layer_requested_signal(self, tab: Any) -> None:
+        tab.set_geodata_layers(["BSS Eau (springs/boreholes)"])
+        seen: list[str] = []
+        tab.geodata_layer_requested.connect(seen.append)
+        tab._request_geodata_layer()
+        assert seen == ["BSS Eau (springs/boreholes)"]
 
     def test_set_marker_paths_updates_state(self, tab: Any, tmp_path: Path) -> None:
         path = tmp_path / "m.gpx"

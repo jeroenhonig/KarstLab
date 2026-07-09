@@ -10,7 +10,6 @@ from pyproj import CRS
 from shapely.geometry import LineString, Point, Polygon
 
 from karstlab.data.vector_io import (
-    _as_wgs84,
     _description,
     read_gpx_track,
     read_gpx_waypoints,
@@ -20,6 +19,7 @@ from karstlab.data.vector_io import (
     to_geojson,
     to_gpx,
     to_kml,
+    to_wgs84,
 )
 
 
@@ -38,14 +38,14 @@ def test_to_geojson_writes_feature_collection(tmp_path) -> None:  # type: ignore
     assert payload["features"][0]["geometry"]["type"] == "Point"
 
 
-def test_as_wgs84_uses_semantic_crs_equality() -> None:
+def test_to_wgs84_uses_semantic_crs_equality() -> None:
     frame = gpd.GeoDataFrame(
         [{"name": "Marker", "geometry": Point(5.1, 43.2)}],
         geometry="geometry",
         crs=CRS.from_string("OGC:CRS84"),
     )
 
-    assert _as_wgs84(frame) is frame
+    assert to_wgs84(frame) is frame
 
 
 def test_description_does_not_mutate_properties() -> None:

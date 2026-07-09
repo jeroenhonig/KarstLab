@@ -10,6 +10,8 @@ from typing import Any
 from PySide6.QtCore import QUrl, Signal
 from PySide6.QtWidgets import QTextBrowser, QVBoxLayout, QWidget
 
+from karstlab.presentation import map_palette
+
 _CLICK_HANDLER_JS = """
 (function() {
     if (window._karstlab_click_active) return;
@@ -279,14 +281,17 @@ _IMPORTED_MARKERS_JS = """
         window._kl_imported_layer = null;
     }
     var geojson = JSON.parse(data);
+    function _klColor(f){return (f && f.properties && f.properties._kl_color) || '#7c3aed';}
     window._kl_imported_layer = L.geoJSON(geojson, {
         pointToLayer: function(f, ll) {
+            var c=_klColor(f);
             return L.circleMarker(ll, {
-                radius: 6, color: '#7c3aed', fillColor: '#7c3aed', fillOpacity: 0.85, weight: 1
+                radius: 6, color: c, fillColor: c, fillOpacity: 0.85, weight: 1
             });
         },
-        style: function(_f) {
-            return {color: '#7c3aed', weight: 3, fillColor: '#7c3aed', fillOpacity: 0.2};
+        style: function(f) {
+            var c=_klColor(f);
+            return {color: c, weight: 3, fillColor: c, fillOpacity: 0.2};
         },
         onEachFeature: function(f, l) {
             var name = (f.properties && f.properties.name) || '';
@@ -298,6 +303,57 @@ _IMPORTED_MARKERS_JS = """
         }
     }).addTo(map);
 })(__DATA__);
+"""
+
+
+_INJECT_GEOJSON_JS = """
+(function(data, layerName, color) {
+    var map = null;
+    for (var k in window) {
+        try {
+            var m = window[k];
+            if (m && typeof m === 'object' && m._leaflet_id !== undefined && m.addLayer) {
+                map = m; break;
+            }
+        } catch (_) {}
+    }
+    if (!map) { return; }
+    window._kl_geodata = window._kl_geodata || {};
+    if (window._kl_geodata[layerName]) {
+        try { map.removeLayer(window._kl_geodata[layerName]); } catch (_) {}
+    }
+    var gj = JSON.parse(data);
+    var layer = L.geoJSON(gj, {
+        pointToLayer: function(f, ll) {
+            return L.circleMarker(ll, {
+                radius: 5, color: color, fillColor: color, fillOpacity: 0.85, weight: 1
+            });
+        },
+        style: function(_f) {
+            return {color: color, weight: 2, fillColor: color, fillOpacity: 0.15};
+        },
+        onEachFeature: function(f, l) {
+            var p = f.properties || {};
+            // Build the popup with textContent so external attribute values
+            // cannot inject HTML into the page.
+            var box = document.createElement('div');
+            var keys = Object.keys(p).slice(0, 10);
+            for (var i = 0; i < keys.length; i++) {
+                var v = p[keys[i]];
+                if (v === null || v === undefined || v === '') { continue; }
+                var row = document.createElement('div');
+                row.textContent = keys[i] + ': ' + v;
+                box.appendChild(row);
+            }
+            l.bindPopup(box);
+            var label = p.libelle || p.nom || p.name || p.id || layerName;
+            var tip = document.createElement('span');
+            tip.textContent = String(label);
+            l.bindTooltip(tip);
+        }
+    }).addTo(map);
+    window._kl_geodata[layerName] = layer;
+})(__DATA__, __LAYER__, __COLOR__);
 """
 
 
@@ -436,7 +492,7 @@ class MapView(QWidget):
         self,
         geojson_str: str,
         layer_name: str = "BRGM Cavités",
-        color: str = "#dc2626",
+        color: str = map_palette.POI_DEFAULT,
     ) -> None:
         if self._web_view is None:
             return
@@ -444,6 +500,39 @@ class MapView(QWidget):
             _INJECT_POI_JS.replace("__DATA__", json.dumps(geojson_str))
             .replace("__LAYER__", json.dumps(layer_name))
             .replace("__COLOR__", json.dumps(color))
+        )
+        self._web_view.page().runJavaScript(script)
+
+    def inject_geojson_layer(
+        self,
+        geojson_str: str,
+        layer_name: str,
+        *,
+        color: str = map_palette.GEOJSON_DEFAULT,
+    ) -> None:
+        """Inject an on-demand vector layer (points/lines/polygons) onto the live map.
+
+        Re-injecting the same ``layer_name`` replaces the previous instance, so a
+        layer can be toggled/refreshed without piling up duplicates.
+        """
+        if self._web_view is None:
+            return
+        script = (
+            _INJECT_GEOJSON_JS.replace("__DATA__", json.dumps(geojson_str))
+            .replace("__LAYER__", json.dumps(layer_name))
+            .replace("__COLOR__", json.dumps(color))
+        )
+        self._web_view.page().runJavaScript(script)
+
+    def fly_to(self, lat: float, lon: float, *, zoom: int = 16) -> None:
+        """Pan/zoom the live map to a coordinate (used to jump to a depression)."""
+        if self._web_view is None:
+            return
+        script = (
+            "(function(la,lo,z){var m=null;for(var k in window){try{var o=window[k];"
+            "if(o&&typeof o==='object'&&o._leaflet_id!==undefined&&o.setView){m=o;break;}}"
+            "catch(_){}}if(m){m.setView([la,lo],Math.max(m.getZoom(),z));}})"
+            f"({lat!r},{lon!r},{int(zoom)});"
         )
         self._web_view.page().runJavaScript(script)
 

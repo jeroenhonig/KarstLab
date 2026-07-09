@@ -71,3 +71,71 @@ def test_extract_contours_rejects_non_2d_arrays() -> None:
             transform=Affine.identity(),
             interval_m=1.0,
         )
+
+
+def test_extract_contours_excludes_nodata_from_range() -> None:
+    # A small ramp 0..4 with a -99999 nodata sentinel. Without masking the
+    # sentinel would inflate the level count to ~100k and hang; masked, only the
+    # valid 0..4 range is contoured.
+    ramp = np.tile(np.arange(5, dtype=np.float64), (5, 1))
+    ramp[0, 0] = -99999.0
+
+    contours = extract_contours(
+        ramp, transform=Affine.identity(), interval_m=1.0, nodata=-99999.0
+    )
+
+    assert set(contours["elevation_m"]) == {1.0, 2.0, 3.0}
+
+
+def test_extract_contours_caps_level_count_and_reports() -> None:
+    # 0..600 range at 1 m would be 599 levels; capped to <= max_levels by
+    # coarsening the interval, and the adjustment is reported via callback.
+    ramp = np.tile(np.linspace(0.0, 600.0, 400, dtype=np.float64), (4, 1))
+    messages: list[str] = []
+
+    contours = extract_contours(
+        ramp,
+        transform=Affine.identity(),
+        interval_m=1.0,
+        max_levels=60,
+        callback=messages.append,
+    )
+
+    distinct_levels = set(contours["elevation_m"])
+    assert len(distinct_levels) <= 60
+    assert any("Contour interval raised" in m for m in messages)
+
+
+def test_effective_interval_coarsens_only_when_needed() -> None:
+    from karstlab.business.contours import _effective_interval
+
+    assert _effective_interval(0.0, 50.0, 1.0, 60) == 1.0  # 50 levels, fine
+    assert _effective_interval(0.0, 258.0, 1.0, 60) == 5.0  # ceil(258/60)=5
+    assert _effective_interval(0.0, 0.0, 1.0, 60) == 1.0  # flat: unchanged
+
+
+def test_decimation_factor_thresholds() -> None:
+    from karstlab.business.contours import _decimation_factor
+
+    assert _decimation_factor((100, 100), 2000) == 1  # within budget
+    assert _decimation_factor((2000, 1500), 2000) == 1  # exactly at budget
+    assert _decimation_factor((4100, 800), 2000) == 3  # ceil(4100 / 2000)
+    assert _decimation_factor((9000, 9000), 0) == 1  # disabled budget
+
+
+def test_extract_contours_decimates_large_grid_but_keeps_coordinates() -> None:
+    # A west-east elevation ramp: every column is one metre higher than the last.
+    width = 600
+    ramp = np.tile(np.arange(width, dtype=np.float64), (10, 1))
+    transform = Affine.translation(1000.0, 5000.0) * Affine.scale(1.0, -1.0)
+
+    full = extract_contours(ramp, transform=transform, interval_m=1.0, max_grid_px=10_000)
+    decimated = extract_contours(ramp, transform=transform, interval_m=1.0, max_grid_px=100)
+
+    # Decimation traces a coarser grid, so it emits fewer/shorter lines.
+    assert not decimated.empty
+    assert len(decimated) <= len(full)
+    # Coordinates remain in the DEM's spatial range (transform scaled correctly).
+    xs = [x for geom in decimated.geometry for x, _ in geom.coords]
+    assert min(xs) >= 1000.0
+    assert max(xs) <= 1000.0 + width

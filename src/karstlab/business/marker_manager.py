@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,6 +15,26 @@ from shapely.geometry import Point
 from karstlab.data.vector_io import to_gpx, to_kml
 
 WGS84_CRS = "EPSG:4326"
+
+# Stable palette for imported marker files. A file's colour is derived from its
+# name, so the same file always renders in the same colour across analyses
+# (never random); an explicit override always wins.
+_MARKER_PALETTE: tuple[str, ...] = (
+    "#7c3aed", "#dc2626", "#0ea5e9", "#16a34a",
+    "#f59e0b", "#db2777", "#0d9488", "#9333ea",
+)
+
+
+def imported_marker_color(name: str, overrides: Mapping[str, str] | None = None) -> str:
+    """Return a deterministic (or user-overridden) colour for an imported file.
+
+    ``name`` is the marker file name. Without an override the colour is a stable
+    function of the name, so it does not change between analyses.
+    """
+    if overrides and name in overrides:
+        return overrides[name]
+    digest = int(hashlib.sha1(name.encode("utf-8")).hexdigest(), 16)
+    return _MARKER_PALETTE[digest % len(_MARKER_PALETTE)]
 
 
 @dataclass(frozen=True)

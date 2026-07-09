@@ -132,9 +132,36 @@ class LayerConfig(StrictModel):
         return self
 
 
+class VectorLayerConfig(StrictModel):
+    """A queryable vector overlay fetched from an OGC WFS (or compatible) service.
+
+    Additive to the existing tile/WMS ``LayerConfig`` registry. Defaults match
+    the observed French services (WFS 2.0, GeoJSON, Lambert-93 native). ``bake``
+    controls whether the layer is fetched and embedded into the analysis map
+    (small fixed analysis-context sets only) versus fetched on demand.
+    """
+
+    name: str = Field(min_length=1)
+    url: HttpUrl
+    typename: str = Field(min_length=1)
+    service: Literal["wfs"] = "wfs"
+    version: str = "2.0.0"
+    output_format: str = "application/json"
+    srs: str = Field(default="EPSG:2154", pattern=r"^EPSG:\d+$")
+    bbox_filter: bool = True
+    max_features: int = Field(default=5000, gt=0)
+    cql_filter: str | None = None
+    geometry_name: str = "geom"
+    style: dict[str, Any] | None = None
+    queryable: bool = True
+    bake: bool = False
+    attribution: str | None = None
+
+
 class MapLayers(StrictModel):
     base: list[LayerConfig] = Field(min_length=1)
     overlays: list[LayerConfig] = Field(default_factory=list)
+    vector_overlays: list[VectorLayerConfig] = Field(default_factory=list)
 
 
 class PoiSource(StrictModel):
@@ -202,6 +229,15 @@ class DepressionResult(StrictModel):
     centroid: Coordinate
     geometry: GeoJsonGeometry
     quality_flags: DepressionQualityFlags = Field(default_factory=DepressionQualityFlags)
+    # Distance from the depression centroid to the nearest mapped geological fault
+    # (BDCharm50 structural lines), in metres; ``None`` when no fault layer is set.
+    distance_to_fault_m: float | None = Field(default=None, ge=0.0)
+    nearest_fault_type: str | None = None
+    # Orientation of the nearest fault (folded bearing 0-180°) and its relation to
+    # the cave line ("parallel"/"oblique"/"transverse") — a parallel fault is the
+    # one a conduit most likely follows.
+    nearest_fault_bearing_deg: float | None = Field(default=None, ge=0.0, le=180.0)
+    fault_orientation: str | None = None
 
     @field_validator("geometry")
     @classmethod
@@ -278,6 +314,19 @@ class ProjectFile(StrictModel):
     analysis_params: AnalysisParams = Field(default_factory=AnalysisParams)
     dem_paths: list[Path] = Field(default_factory=list)
     marker_paths: list[Path] = Field(default_factory=list)
+    # Optional local BDCharm50 fault dataset (shapefile, directory, or .zip) used
+    # for the per-doline distance-to-nearest-fault analysis.
+    fault_lines_path: Path | None = None
+    # Optional known cave-survey line (GPX/KML). When set, the pipeline runs the
+    # conduit-projection stage (doline alignment → corridor likelihood) to predict
+    # where the cave continues from the survey's downstream end.
+    caveline_path: Path | None = None
+    # Which end of the survey line is the downstream terminus the corridor projects
+    # FROM: "first" = survey start, "last" = survey end. Flips the projection sense.
+    caveline_downstream_end: Literal["first", "last"] = "first"
+    # Optional target points (e.g. a neighbouring cave entrance) that pull the
+    # predicted conduit heading; used only when caveline_path is set.
+    conduit_target_points: list[Coordinate] = Field(default_factory=list)
     last_pipeline_result: Path | None = None
 
 
@@ -292,3 +341,6 @@ class UserSettings(StrictModel):
     large_dem_threshold_mb: int = Field(default=500, gt=0)
     last_project_dir: Path | None = None
     analysis_params: AnalysisParams = Field(default_factory=AnalysisParams)
+    # Per-file colour overrides for imported markers, keyed by file name. Keeps
+    # an imported KML/GPX at a stable, user-chosen colour across analyses.
+    marker_colors: dict[str, str] = Field(default_factory=dict)

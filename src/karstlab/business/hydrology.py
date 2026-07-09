@@ -118,15 +118,23 @@ class HydrologyAnalyzer:
         *,
         stream_threshold: float,
         callback: Callable[[str], None] | None = None,
+        reuse: Callable[[Path], bool] | None = None,
     ) -> HydrologyOutputs:
         output_dir.mkdir(parents=True, exist_ok=True)
-        filled_dem = self.fill_dem(dem_path, output_dir / "dem_filled.tif", callback=callback)
-        pointer = self.d8_pointer(filled_dem, output_dir / "d8_pointer.tif", callback=callback)
-        accumulation = self.flow_accumulation(
-            pointer,
-            output_dir / "flow_accum.tif",
-            callback=callback,
-        )
+        # Fill/pointer/accumulation depend only on the DEM, so reuse cached
+        # outputs when ``reuse`` reports them valid. Streams depend on the
+        # stream-threshold parameter and are always (re)computed — cheap, and it
+        # is the one stage a parameter tweak should actually change.
+        reuse = reuse or (lambda _path: False)
+        filled_dem = output_dir / "dem_filled.tif"
+        if not reuse(filled_dem):
+            filled_dem = self.fill_dem(dem_path, filled_dem, callback=callback)
+        pointer = output_dir / "d8_pointer.tif"
+        if not reuse(pointer):
+            pointer = self.d8_pointer(filled_dem, pointer, callback=callback)
+        accumulation = output_dir / "flow_accum.tif"
+        if not reuse(accumulation):
+            accumulation = self.flow_accumulation(pointer, accumulation, callback=callback)
         streams = self.extract_streams(
             accumulation,
             output_dir / "streams.tif",

@@ -209,6 +209,13 @@
           },
           "title": "Overlays",
           "type": "array"
+        },
+        "vector_overlays": {
+          "items": {
+            "$ref": "#/$defs/VectorLayerConfig"
+          },
+          "title": "Vector Overlays",
+          "type": "array"
         }
       },
       "required": [
@@ -292,12 +299,155 @@
       ],
       "title": "PoiSourceType",
       "type": "string"
+    },
+    "VectorLayerConfig": {
+      "additionalProperties": false,
+      "description": "A queryable vector overlay fetched from an OGC WFS (or compatible) service.\n\nAdditive to the existing tile/WMS ``LayerConfig`` registry. Defaults match\nthe observed French services (WFS 2.0, GeoJSON, Lambert-93 native). ``bake``\ncontrols whether the layer is fetched and embedded into the analysis map\n(small fixed analysis-context sets only) versus fetched on demand.",
+      "properties": {
+        "attribution": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attribution"
+        },
+        "bake": {
+          "default": false,
+          "title": "Bake",
+          "type": "boolean"
+        },
+        "bbox_filter": {
+          "default": true,
+          "title": "Bbox Filter",
+          "type": "boolean"
+        },
+        "cql_filter": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cql Filter"
+        },
+        "geometry_name": {
+          "default": "geom",
+          "title": "Geometry Name",
+          "type": "string"
+        },
+        "max_features": {
+          "default": 5000,
+          "exclusiveMinimum": 0,
+          "title": "Max Features",
+          "type": "integer"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "output_format": {
+          "default": "application/json",
+          "title": "Output Format",
+          "type": "string"
+        },
+        "queryable": {
+          "default": true,
+          "title": "Queryable",
+          "type": "boolean"
+        },
+        "service": {
+          "const": "wfs",
+          "default": "wfs",
+          "title": "Service",
+          "type": "string"
+        },
+        "srs": {
+          "default": "EPSG:2154",
+          "pattern": "^EPSG:\\d+$",
+          "title": "Srs",
+          "type": "string"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Style"
+        },
+        "typename": {
+          "minLength": 1,
+          "title": "Typename",
+          "type": "string"
+        },
+        "url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        },
+        "version": {
+          "default": "2.0.0",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "url",
+        "typename"
+      ],
+      "title": "VectorLayerConfig",
+      "type": "object"
     }
   },
   "additionalProperties": false,
   "properties": {
     "analysis_defaults": {
       "$ref": "#/$defs/AnalysisParams"
+    },
+    "bbox_wgs84": {
+      "anyOf": [
+        {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Bbox Wgs84"
     },
     "common_crs": {
       "items": {

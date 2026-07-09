@@ -26,7 +26,7 @@ CONNECTED_SEGMENT_TOLERANCE_M = 1.0
 
 def to_geojson(frame: gpd.GeoDataFrame, path: Path) -> Path:
     """Write a GeoDataFrame to GeoJSON in WGS84 coordinates."""
-    output = _as_wgs84(frame)
+    output = to_wgs84(frame)
     path.parent.mkdir(parents=True, exist_ok=True)
     output.to_file(path, driver="GeoJSON")
     return path
@@ -34,7 +34,7 @@ def to_geojson(frame: gpd.GeoDataFrame, path: Path) -> Path:
 
 def to_kml(frame: gpd.GeoDataFrame, path: Path, *, name_field: str = "name") -> Path:
     """Write points, lines, and polygons from a GeoDataFrame to KML."""
-    output = _as_wgs84(frame)
+    output = to_wgs84(frame)
     kml = simplekml.Kml()
 
     for index, row in output.iterrows():
@@ -50,7 +50,7 @@ def to_kml(frame: gpd.GeoDataFrame, path: Path, *, name_field: str = "name") -> 
 
 def to_gpx(frame: gpd.GeoDataFrame, path: Path, *, name_field: str = "name") -> Path:
     """Write point geometries from a GeoDataFrame to GPX waypoints."""
-    output = _as_wgs84(frame)
+    output = to_wgs84(frame)
     if not all(isinstance(geometry, Point) for geometry in output.geometry):
         raise ValueError("GPX export supports point geometries only")
 
@@ -231,7 +231,8 @@ def survey_line_geometry(
     return LineString(coordinates)
 
 
-def _as_wgs84(frame: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def to_wgs84(frame: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Return the frame reprojected to WGS84, leaving it untouched if already so."""
     if frame.crs is None:
         raise ValueError("Vector data must have a CRS before export")
     if CRS.from_user_input(frame.crs).equals(WGS84, ignore_axis_order=True):

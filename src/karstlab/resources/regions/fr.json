@@ -85,6 +85,36 @@
         "opacity": 0.5,
         "attribution": "© BRGM/EauFrance"
       }
+    ],
+    "vector_overlays": [
+      {
+        "name": "BRGM Dolines (BDCharm50)",
+        "url": "https://infoterre.brgm.fr/geoserver/ows",
+        "typename": "BRGM:c50_l_divers",
+        "version": "2.0.0",
+        "output_format": "application/json",
+        "srs": "EPSG:2154",
+        "cql_filter": "code=8",
+        "geometry_name": "geom",
+        "max_features": 5000,
+        "style": {"color": "#16a34a", "weight": 2, "fillOpacity": 0.0},
+        "queryable": true,
+        "bake": true,
+        "attribution": "© BRGM"
+      },
+      {
+        "name": "BSS Eau (springs/boreholes)",
+        "url": "https://geoservices.brgm.fr/geologie",
+        "typename": "BSS_EAU_POINT",
+        "version": "2.0.0",
+        "output_format": "GML2",
+        "srs": "EPSG:2154",
+        "max_features": 500,
+        "style": {"color": "#2563eb", "weight": 1, "fillOpacity": 0.85},
+        "queryable": true,
+        "bake": false,
+        "attribution": "© BRGM/BSS Eau"
+      }
     ]
   },
   "poi_sources": [

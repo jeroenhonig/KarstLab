@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFileDialog,
+    QFrame,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QSlider,
     QSplitter,
     QStatusBar,
@@ -55,6 +57,7 @@ from karstlab.presentation.guided_workflow import GuidedWorkflowPanel
 from karstlab.presentation.layers_tab import LayersTab
 from karstlab.presentation.map_view import MapView
 from karstlab.presentation.markers_tab import MarkersTab
+from karstlab.presentation.progress_model import progress_percent
 from karstlab.presentation.results_tab import ResultsTab
 from karstlab.presentation.settings_dialog import SettingsDialog
 from karstlab.presentation.shortcuts_dialog import ShortcutsDialog
@@ -81,6 +84,59 @@ class _BrgmOverlayWorker(QObject):
         self.finished.emit(
             fetch_brgm_cavites(self._department, cache_dir=self._cache_dir)
         )
+
+
+def _union_dem_bounds(
+    dem_paths: list[Path],
+) -> tuple[tuple[float, float, float, float] | None, str]:
+    """Union extent + CRS of the analysis DEM tiles (for an on-demand bbox query)."""
+    import rasterio
+
+    lefts: list[float] = []
+    bottoms: list[float] = []
+    rights: list[float] = []
+    tops: list[float] = []
+    crs = "EPSG:2154"
+    for path in dem_paths:
+        try:
+            with rasterio.open(path) as dataset:
+                b = dataset.bounds
+                lefts.append(b.left)
+                bottoms.append(b.bottom)
+                rights.append(b.right)
+                tops.append(b.top)
+                if dataset.crs is not None:
+                    crs = dataset.crs.to_string()
+        except Exception:  # noqa: BLE001 - skip unreadable tiles
+            continue
+    if not lefts:
+        return None, crs
+    return (min(lefts), min(bottoms), max(rights), max(tops)), crs
+
+
+class _GeodataLayerWorker(QObject):
+    """Fetch one on-demand WFS vector overlay off the UI thread."""
+
+    finished = Signal(str, object, str)  # (layer name, GeoJSON dict | None, colour)
+
+    def __init__(self, vec: Any, dem_paths: list[Path], cache_dir: Path | None) -> None:
+        super().__init__()
+        self._vec = vec
+        self._dem_paths = dem_paths
+        self._cache_dir = cache_dir
+
+    def run(self) -> None:
+        from karstlab.business.pipeline import fetch_vector_overlay
+
+        color = (self._vec.style or {}).get("color", "#2563eb")
+        bounds, crs = _union_dem_bounds(self._dem_paths)
+        if bounds is None:
+            self.finished.emit(self._vec.name, None, color)
+            return
+        collection = fetch_vector_overlay(
+            self._vec, dem_bounds=bounds, dem_crs=crs, cache_dir=self._cache_dir
+        )
+        self.finished.emit(self._vec.name, collection, color)
 
 
 class _ProfileWorker(QObject):
@@ -115,6 +171,20 @@ class _ProfileWorker(QObject):
         self.finished.emit(distances, elevations)
 
 
+def _scrollable(widget: QWidget) -> QScrollArea:
+    """Wrap a tab widget so it scrolls (vertically/horizontally) on small screens.
+
+    ``setWidgetResizable(True)`` lets the content reflow to the viewport width and
+    only scroll when it genuinely cannot fit, so the sidebar stays usable on a
+    short 13" laptop screen instead of clipping the lower controls.
+    """
+    area = QScrollArea()
+    area.setWidgetResizable(True)
+    area.setFrameShape(QFrame.Shape.NoFrame)
+    area.setWidget(widget)
+    return area
+
+
 class MainWindow(QMainWindow):
     """Map-centric KarstLab main window."""
 
@@ -123,6 +193,7 @@ class MainWindow(QMainWindow):
         self._analysis_runner = analysis_runner
         self._analysis_thread: QThread | None = None
         self._brgm_thread: QThread | None = None
+        self._geodata_thread: QThread | None = None
         self._profile_thread: QThread | None = None
         self._profile_p1: tuple[float, float] | None = None
         self._analysis_worker: AnalysisWorker | None = None
@@ -268,7 +339,10 @@ class MainWindow(QMainWindow):
         map_layout.setContentsMargins(0, 0, 0, 0)
         map_layout.setSpacing(0)
         map_layout.addWidget(self._update_banner)
-        map_layout.addWidget(self.map_view)
+        # Stretch factor 1 lets the map consume all spare vertical space so it
+        # fills the screen; the banner and the compact guided bar only take their
+        # natural height instead of leaving a large empty gap below the map.
+        map_layout.addWidget(self.map_view, 1)
         map_layout.addWidget(self._guided_panel)
 
         sidebar_panel = QWidget()
@@ -277,11 +351,13 @@ class MainWindow(QMainWindow):
         sidebar_layout.setSpacing(10)
         sidebar_layout.addWidget(self.sidebar)
 
-        self.sidebar.addTab(self._tools_widget, self.tr("Tools"))
-        self.sidebar.addTab(self._results_widget, self.tr("Results"))
-        self.sidebar.addTab(self._layers_widget, self.tr("Layers"))
-        self.sidebar.addTab(self._markers_widget, self.tr("Markers"))
-        self.sidebar.addTab(self._export_widget, self.tr("Export"))
+        # Wrap each tab so its content scrolls when the sidebar is short or narrow
+        # (e.g. on a 13" laptop) instead of clipping or overflowing.
+        self.sidebar.addTab(_scrollable(self._tools_widget), self.tr("Tools"))
+        self.sidebar.addTab(_scrollable(self._results_widget), self.tr("Results"))
+        self.sidebar.addTab(_scrollable(self._layers_widget), self.tr("Layers"))
+        self.sidebar.addTab(_scrollable(self._markers_widget), self.tr("Markers"))
+        self.sidebar.addTab(_scrollable(self._export_widget), self.tr("Export"))
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(map_panel)
@@ -312,6 +388,14 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
         self._recent_menu: QMenu = file_menu.addMenu(self.tr("Open recent"))
         self._refresh_recent_menu()
+
+        view_menu: QMenu = self.menuBar().addMenu(self.tr("View"))
+        self._show_guide_action = QAction(self.tr("Show workflow guide"), self)
+        self._show_guide_action.setCheckable(True)
+        self._show_guide_action.setChecked(True)
+        self._show_guide_action.setShortcut("Ctrl+G")
+        self._show_guide_action.toggled.connect(self._guided_panel.setVisible)
+        view_menu.addAction(self._show_guide_action)
 
         help_menu: QMenu = self.menuBar().addMenu(self.tr("Help"))
 
@@ -351,6 +435,10 @@ class MainWindow(QMainWindow):
         self._results_widget.depression_selected.connect(self._on_depression_selected)
 
         self._markers_widget.markers_changed.connect(self._on_markers_changed)
+        self._markers_widget.marker_color_changed.connect(self._on_marker_color_changed)
+        self._markers_widget.geodata_layer_requested.connect(self._on_geodata_layer_requested)
+        self.profile_combo.currentTextChanged.connect(lambda _t: self._refresh_geodata_layers())
+        self._refresh_geodata_layers()
         self._markers_widget.place_on_map_toggled.connect(self._toggle_placement_mode)
         self._markers_widget.gps_marker_add_requested.connect(self._add_gps_marker)
         self._markers_widget.brgm_load_requested.connect(self._load_brgm_overlay)
@@ -552,8 +640,7 @@ class MainWindow(QMainWindow):
         self.map_view.clear_profile_mode()
         self._tools_widget.set_analyze_enabled(False)
         self._tools_widget.set_cancel_enabled(True)
-        self._tools_widget.set_progress(5)
-        self._tools_widget.set_status(self.tr("Analysis running"))
+        self._tools_widget.begin_progress()
         self.statusBar().showMessage(self.tr("Analysis running"))
 
         profile = load_land_profile(self._tools_widget.profile_id())
@@ -569,7 +656,11 @@ class MainWindow(QMainWindow):
             profile_id=profile.id,
             analysis_params=self._tools_widget.analysis_params(),
             marker_paths=self._markers_widget._marker_paths,
+            fault_lines_path=self._tools_widget.fault_lines_path(),
+            caveline_path=self._tools_widget.caveline_path(),
+            caveline_downstream_end=self._tools_widget.caveline_downstream_end(),
             runner=self._analysis_runner,
+            force_recompute=self._tools_widget.force_recompute(),
         )
         thread = QThread(self)
         worker.moveToThread(thread)
@@ -600,17 +691,13 @@ class MainWindow(QMainWindow):
 
     def _on_progress(self, message: str) -> None:
         if message:
-            self._tools_widget.set_status(message)
+            self._tools_widget.report_progress(message)
             self.statusBar().showMessage(message)
-            self._tools_widget.set_progress(
-                max(self._tools_widget._progress_bar.value(), _progress_value(message))
-            )
 
     def _on_analysis_finished(self, result: object, project: object) -> None:
-        self._tools_widget.set_progress(100)
+        self._tools_widget.end_progress(self.tr("Analysis complete"), percent=100)
         self._tools_widget.set_analyze_enabled(True)
         self._tools_widget.set_cancel_enabled(False)
-        self._tools_widget.set_status(self.tr("Analysis complete"))
         self.statusBar().showMessage(self.tr("Analysis complete"))
         self.display_results(result, project)  # type: ignore[arg-type]
         self.sidebar.setCurrentIndex(1)
@@ -629,18 +716,16 @@ class MainWindow(QMainWindow):
             self._guided_panel.advance_to(4)
 
     def _on_analysis_failed(self, message: str) -> None:
-        self._tools_widget.set_progress(0)
+        self._tools_widget.end_progress(self.tr("Analysis failed"), percent=0)
         self._tools_widget.set_analyze_enabled(True)
         self._tools_widget.set_cancel_enabled(False)
-        self._tools_widget.set_status(self.tr("Analysis failed"))
         self.statusBar().showMessage(self.tr("Analysis failed"))
         QMessageBox.critical(self, self.tr("Analysis failed"), message)
 
     def _on_analysis_cancelled(self) -> None:
-        self._tools_widget.set_progress(0)
+        self._tools_widget.end_progress(self.tr("Analysis cancelled"), percent=0)
         self._tools_widget.set_analyze_enabled(True)
         self._tools_widget.set_cancel_enabled(False)
-        self._tools_widget.set_status(self.tr("Analysis cancelled"))
         self.statusBar().showMessage(self.tr("Analysis cancelled"))
 
     def _clear_worker(self) -> None:
@@ -653,6 +738,9 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(
             f"Depression {depression_id}: {lat:.6f}, {lon:.6f}"
         )
+        # Jump the live map to the chosen depression so any of the (thousands of)
+        # detected depressions can be located from the results panel.
+        self.map_view.fly_to(lat, lon)
 
     def _toggle_placement_mode(self, active: bool) -> None:
         if active:
@@ -836,6 +924,72 @@ class MainWindow(QMainWindow):
         self._persist_marker_paths()
         self._refresh_imported_markers_on_map()
 
+    def _refresh_geodata_layers(self) -> None:
+        """Populate the on-demand geodata chooser from the active profile."""
+        try:
+            profile = load_land_profile(self._tools_widget.profile_id())
+        except Exception:  # noqa: BLE001 - missing/invalid profile → no on-demand layers
+            self._markers_widget.set_geodata_layers([])
+            return
+        names = [v.name for v in profile.map_layers.vector_overlays if not v.bake]
+        self._markers_widget.set_geodata_layers(names)
+
+    def _on_geodata_layer_requested(self, name: str) -> None:
+        if self._geodata_thread is not None and self._geodata_thread.isRunning():
+            return
+        if self._current_project is None or not self._current_project.dem_paths:
+            self.statusBar().showMessage(
+                self.tr("Run an analysis first so the data area is known")
+            )
+            return
+        try:
+            profile = load_land_profile(self._current_project.land_profile)
+        except Exception:  # noqa: BLE001
+            return
+        vec = next(
+            (v for v in profile.map_layers.vector_overlays if v.name == name), None
+        )
+        if vec is None:
+            return
+        self.statusBar().showMessage(self.tr("Fetching {0}…").format(name))
+        worker = _GeodataLayerWorker(
+            vec, list(self._current_project.dem_paths), self._current_project.cache_dir
+        )
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.finished.connect(self._on_geodata_loaded)
+        worker.finished.connect(thread.quit)
+        thread.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(self._clear_geodata_thread)
+        self._geodata_thread = thread
+        thread.start()
+
+    def _on_geodata_loaded(self, name: str, collection: object, color: str) -> None:
+        import json
+
+        if not isinstance(collection, dict) or not collection.get("features"):
+            self.statusBar().showMessage(self.tr("{0}: no data in this area").format(name))
+            return
+        self.map_view.inject_geojson_layer(json.dumps(collection), name, color=color)
+        count = len(collection["features"])
+        self.statusBar().showMessage(self.tr("{0}: {1} features").format(name, count))
+
+    def _clear_geodata_thread(self) -> None:
+        self._geodata_thread = None
+
+    def _on_marker_color_changed(self, file_name: str, hex_color: str) -> None:
+        colors = dict(self._user_settings.marker_colors)
+        colors[file_name] = hex_color
+        self._user_settings = save_user_settings(
+            self._user_settings.model_copy(update={"marker_colors": colors})
+        )
+        self._refresh_imported_markers_on_map()
+        self.statusBar().showMessage(
+            self.tr("Marker colour set for {0}").format(file_name)
+        )
+
     def _refresh_imported_markers_on_map(self) -> None:
         geojson = self._imported_markers_geojson()
         if geojson is not None:
@@ -844,8 +998,10 @@ class MainWindow(QMainWindow):
     def _imported_markers_geojson(self) -> str | None:
         import json
 
+        from karstlab.business.marker_manager import imported_marker_color
         from karstlab.data.vector_io import read_gpx_waypoints, read_kml_geometries
 
+        overrides = self._user_settings.marker_colors
         features: list[Any] = []
         for path in self._markers_widget._marker_paths:
             if not path.exists():
@@ -858,7 +1014,12 @@ class MainWindow(QMainWindow):
                     frame = read_gpx_waypoints(path)
                 else:
                     continue
-                features.extend(json.loads(frame.to_json())["features"])
+                color = imported_marker_color(path.name, overrides)
+                for feature in json.loads(frame.to_json())["features"]:
+                    # Tag every feature with its file's stable colour so the live
+                    # layer renders each imported file in a consistent colour.
+                    feature.setdefault("properties", {})["_kl_color"] = color
+                    features.append(feature)
             except Exception:  # noqa: BLE001 - skip unreadable marker files
                 continue
         if not features:
@@ -960,11 +1121,14 @@ class MainWindow(QMainWindow):
 def _default_analysis_runner(
     project: ProjectFile,
     callback: Callable[[str], None] | None,
+    *,
+    force_recompute: bool = False,
 ) -> PipelineResult:
     result = run_headless_analysis(
         project,
         hydrology_backend=WhiteboxAdapter.create(work_dir=project.output_dir / "rasters"),
         callback=callback,
+        force_recompute=force_recompute,
     )
     return result
 
@@ -998,48 +1162,9 @@ def _manual_marker_tmp_path(name: str, lat: float, lon: float) -> Path:
 
 
 
-def _progress_value(message: str) -> int:
-    if "analysis complete" in message.lower():
-        return 100
-    for marker, value in (
-        # Pipeline phase markers (emitted by run_headless_analysis), monotonic.
-        ("assembling", 8),
-        ("building analysis geotiff", 12),
-        ("reading dem", 14),
-        ("computing terrain", 18),
-        ("running hydrology", 22),
-        # WhiteboxTools sub-steps within the hydrology phase.
-        ("breachdepressions", 28),
-        ("d8pointer", 34),
-        ("d8flowaccumulation", 42),
-        ("extractstreams", 50),
-        ("filldepressions", 60),
-        ("saving data", 64),
-        ("output file written", 66),
-        ("filling depressions", 68),
-        ("detecting dolines", 74),
-        ("extracting contours", 82),
-        ("writing exports", 88),
-        ("rendering interactive map", 93),
-        ("writing report", 97),
-    ):
-        if marker in message.lower():
-            return value
-    if "%" in message:
-        return min(90, max(10, _extract_percent(message)))
-    return 10
-
-
-def _extract_percent(message: str) -> int:
-    tokens = message.rsplit("%", maxsplit=1)[0].split()
-    if not tokens:
-        return 10
-    try:
-        return int(float(tokens[-1]))
-    except ValueError:
-        return 10
-
-
+# Re-exported for callers/tests; the phase + percentage mapping lives in the
+# Qt-free ``progress_model`` module so it can be unit-tested without a display.
+_progress_value = progress_percent
 
 
 __all__ = [

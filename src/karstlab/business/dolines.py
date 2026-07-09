@@ -44,6 +44,7 @@ class DolineDetector:
         transform: Affine,
         crs: CRS | str | None = None,
         nodata: float | int | None = None,
+        depth: np.ndarray | None = None,
     ) -> list[DepressionResult]:
         if crs is None:
             raise ValueError("crs is required for WGS84 depression centroid and geometry output")
@@ -54,7 +55,15 @@ class DolineDetector:
             raise ValueError("original_dem and filled_dem must have the same shape")
 
         nodata_mask = _nodata_mask(original, nodata) | _nodata_mask(filled, nodata)
-        depth = depression_depth_raster(original, filled, nodata=nodata)
+        # Reuse a depth raster the caller already computed (e.g. the pipeline
+        # saves it as an export) instead of recomputing the full-array
+        # fill-minus-original subtraction a second time here.
+        if depth is None:
+            depth = depression_depth_raster(original, filled, nodata=nodata)
+        else:
+            depth = _as_2d_float(depth, name="depth")
+            if depth.shape != original.shape:
+                raise ValueError("depth raster must match the DEM shape")
         candidate_mask = depth >= self.params.min_depth_m
 
         labels, count = ndimage.label(candidate_mask)
@@ -128,6 +137,7 @@ def detect_dolines(
     crs: CRS | str | None = None,
     nodata: float | int | None = None,
     params: DolineDetectionParams | None = None,
+    depth: np.ndarray | None = None,
 ) -> list[DepressionResult]:
     return DolineDetector(params=params or DolineDetectionParams()).detect(
         original_dem,
@@ -135,11 +145,17 @@ def detect_dolines(
         transform=transform,
         crs=crs,
         nodata=nodata,
+        depth=depth,
     )
 
 
 def _as_2d_float(array: np.ndarray, *, name: str) -> np.ndarray:
-    result = np.asarray(array, dtype=np.float64)
+    # Keep a float32 DEM at float32; only promote non-float inputs (int tiles)
+    # to float64 so NaN-based nodata masking stays valid. Halves the working
+    # footprint of the depth raster and detection masks on float32 DEMs.
+    result = np.asarray(array)
+    if not np.issubdtype(result.dtype, np.floating):
+        result = result.astype(np.float64)
     if result.ndim != 2:
         raise ValueError(f"{name} must be a 2D array")
     return result

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -25,6 +25,16 @@ class LayersTab(QWidget):
         self._checkboxes: dict[str, QCheckBox] = {}
         self._sliders: dict[str, QSlider] = {}
         self._layer_state: dict[str, dict[str, int | bool]] = {}
+
+        # Dragging an opacity slider fires valueChanged for every intermediate
+        # value (~100 per drag), and each emit drives a Leaflet DOM update on the
+        # map. Coalesce them: update local state immediately, but emit only the
+        # final value once the slider has been still for a moment.
+        self._pending_opacity: dict[str, int] = {}
+        self._opacity_debounce = QTimer(self)
+        self._opacity_debounce.setSingleShot(True)
+        self._opacity_debounce.setInterval(120)
+        self._opacity_debounce.timeout.connect(self._flush_pending_opacity)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
@@ -85,9 +95,17 @@ class LayersTab(QWidget):
         self.layer_visibility_changed.emit(layer_name, visible)
 
     def _on_opacity_changed(self, layer_name: str, opacity: int) -> None:
-        """Handle layer opacity change."""
+        """Handle layer opacity change (debounced emit, immediate state update)."""
         self._layer_state[layer_name]["opacity"] = opacity
-        self.layer_opacity_changed.emit(layer_name, opacity)
+        self._pending_opacity[layer_name] = opacity
+        self._opacity_debounce.start()
+
+    def _flush_pending_opacity(self) -> None:
+        """Emit the final opacity for every layer touched during the last drag."""
+        pending = self._pending_opacity
+        self._pending_opacity = {}
+        for layer_name, opacity in pending.items():
+            self.layer_opacity_changed.emit(layer_name, opacity)
 
     def _on_tile_grid_toggled(self, checked: bool) -> None:
         """Handle tile grid toggle."""

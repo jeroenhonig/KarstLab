@@ -508,3 +508,34 @@ def _pipeline_result(depressions: list[DepressionResult]) -> PipelineResult:
         depressions=depressions,
         top_depressions=depressions,
     )
+
+
+def test_inject_geojson_layer_no_crash_offscreen(main_window: Any) -> None:
+    # Offscreen MapView has no web view; injection must be a safe no-op.
+    main_window.map_view.inject_geojson_layer(
+        '{"type":"FeatureCollection","features":[]}', "BSS Eau", color="#2563eb"
+    )
+
+
+def test_refresh_geodata_layers_lists_fr_on_demand(main_window: Any) -> None:
+    main_window._tools_widget._profile_combo.setCurrentText("fr")
+    combo = main_window._markers_widget._geodata_combo
+    names = [combo.itemText(i) for i in range(combo.count())]
+    assert any("BSS Eau" in n for n in names)
+
+
+def test_on_geodata_loaded_handles_empty_and_features(main_window: Any) -> None:
+    # No features → status message, no injection, no crash.
+    empty = {"type": "FeatureCollection", "features": []}
+    main_window._on_geodata_loaded("BSS Eau", empty, "#2563eb")
+    # With features → injects (no-op offscreen) without raising.
+    fc = {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {},
+          "geometry": {"type": "Point", "coordinates": [6.0, 47.3]}}]}
+    main_window._on_geodata_loaded("BSS Eau", fc, "#2563eb")
+
+
+def test_geodata_request_without_project_warns(main_window: Any) -> None:
+    main_window._current_project = None
+    # Should not spawn a thread or raise when no analysis area is known.
+    main_window._on_geodata_layer_requested("BSS Eau (springs/boreholes)")
+    assert main_window._geodata_thread is None

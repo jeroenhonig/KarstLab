@@ -82,6 +82,28 @@ def _key_from_path(path: Path) -> str | None:
     return f"{m.group(1)}_{m.group(2)}" if m else None
 
 
+# Tile rasters arrive as ASC grids or GeoTIFFs; IGN LHD downloads are GeoTIFFs
+# shipped without a file extension, so extensionless files are accepted when
+# their leading bytes are the TIFF magic number.
+_RASTER_SUFFIXES = {".asc", ".tif", ".tiff"}
+_TIFF_MAGIC = (b"II*\x00", b"MM\x00*")
+
+
+def _is_dem_tile_file(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    suffix = path.suffix.lower()
+    if suffix in _RASTER_SUFFIXES:
+        return True
+    if suffix:
+        return False
+    try:
+        with path.open("rb") as handle:
+            return handle.read(4) in _TIFF_MAGIC
+    except OSError:
+        return False
+
+
 def _bounds_l93(key: str) -> tuple[float, float, float, float]:
     """SW/NE corners in Lambert93 for tile key XXXX_YYYY."""
     x_km = int(key[:4])
@@ -138,12 +160,14 @@ function sty(k){
     ?{color:'#0ea5e9',weight:2,fillColor:'#0ea5e9',fillOpacity:0.45}
     :{color:'#9ca3af',weight:1,fillColor:'#6b7280',fillOpacity:0.07};
 }
+var drawMode=false;var drawStart=null;var rectLayer=null;
 L.geoJSON(td,{
   style:function(f){return sty(f.properties.k);},
   onEachFeature:function(f,l){
     var k=f.properties.k;lyr[k]=l;
     l.bindTooltip(k,{sticky:true,direction:'top'});
     l.on('click',function(e){
+      if(drawMode){return;}
       L.DomEvent.stopPropagation(e);
       window.location.href='karstlab://tiletoggle?id='+encodeURIComponent(k);
     });
@@ -157,6 +181,45 @@ window.applyClearAll=function(){
   sel={};
   for(var k in lyr)lyr[k].setStyle(sty(k));
 };
+window.applySelectAll=function(){
+  for(var k in lyr){sel[k]=true;lyr[k].setStyle(sty(k));}
+};
+window.applySelectKeys=function(keys){
+  for(var i=0;i<keys.length;i++){var k=keys[i];if(lyr[k]){sel[k]=true;lyr[k].setStyle(sty(k));}}
+};
+// Draw-rectangle selection. While active the map stops panning so a drag draws
+// a selection box; releasing selects every tile the box intersects. Toggling it
+// off restores normal pan/zoom.
+window.setDrawMode=function(on){
+  drawMode=on;
+  if(on){map.dragging.disable();map.getContainer().style.cursor='crosshair';}
+  else{
+    map.dragging.enable();map.getContainer().style.cursor='';
+    drawStart=null;
+    if(rectLayer){map.removeLayer(rectLayer);rectLayer=null;}
+  }
+};
+map.on('mousedown',function(e){
+  if(!drawMode){return;}
+  drawStart=e.latlng;
+  if(rectLayer){map.removeLayer(rectLayer);}
+  rectLayer=L.rectangle([drawStart,drawStart],
+    {color:'#f59e0b',weight:2,fillColor:'#f59e0b',fillOpacity:0.1}).addTo(map);
+});
+map.on('mousemove',function(e){
+  if(!drawMode||!drawStart||!rectLayer){return;}
+  rectLayer.setBounds(L.latLngBounds(drawStart,e.latlng));
+});
+map.on('mouseup',function(e){
+  if(!drawMode||!drawStart){return;}
+  var box=L.latLngBounds(drawStart,e.latlng);drawStart=null;
+  var hit=[];
+  for(var k in lyr){
+    if(box.intersects(lyr[k].getBounds())){sel[k]=true;lyr[k].setStyle(sty(k));hit.push(k);}
+  }
+  if(rectLayer){map.removeLayer(rectLayer);rectLayer=null;}
+  if(hit.length){window.location.href='karstlab://tileselect?ids='+encodeURIComponent(hit.join(','));}
+});
 </script></body></html>"""
 
 
@@ -223,6 +286,18 @@ class TilePickerDialog(QDialog):
         dir_row.addWidget(browse_btn)
 
         # ── Action buttons
+        self._draw_btn = QPushButton(self.tr("Draw area"))
+        self._draw_btn.setCheckable(True)
+        self._draw_btn.setToolTip(
+            self.tr("Drag a rectangle on the map to select the tiles it covers")
+        )
+        self._draw_btn.toggled.connect(self._set_draw_mode)
+        self._draw_btn.setEnabled(False)
+
+        self._select_all_btn = QPushButton(self.tr("Select all"))
+        self._select_all_btn.clicked.connect(self._select_all)
+        self._select_all_btn.setEnabled(False)
+
         self._clear_btn = QPushButton(self.tr("Clear selection"))
         self._clear_btn.clicked.connect(self._clear_all)
         self._clear_btn.setEnabled(False)
@@ -230,6 +305,8 @@ class TilePickerDialog(QDialog):
 
         action_row = QHBoxLayout()
         action_row.addWidget(self._count_label, 1)
+        action_row.addWidget(self._draw_btn)
+        action_row.addWidget(self._select_all_btn)
         action_row.addWidget(self._clear_btn)
 
         # ── Map area
@@ -281,6 +358,16 @@ class TilePickerDialog(QDialog):
                         if key:
                             QTimer.singleShot(0, lambda k=key: dialog_ref._toggle(k))
                         return False
+                    if (
+                        isinstance(url, QUrl)
+                        and url.scheme() == "karstlab"
+                        and url.host() == "tileselect"
+                    ):
+                        ids = _UQ(url.query()).queryItemValue("ids")
+                        if ids:
+                            keys = [k for k in ids.split(",") if k]
+                            QTimer.singleShot(0, lambda ks=keys: dialog_ref._add_selection(ks))
+                        return False
                     result: bool = super().acceptNavigationRequest(url, nav_type, is_main_frame)
                     return result
 
@@ -301,11 +388,10 @@ class TilePickerDialog(QDialog):
 
     def _load_directory(self, directory: Path) -> None:
         self._dir_edit.setText(str(directory))
-        asc_files = sorted(directory.rglob("*.asc"))
         tiles: dict[str, Path] = {}
-        for f in asc_files:
+        for f in sorted(directory.rglob("*")):
             key = _key_from_path(f)
-            if key:
+            if key and _is_dem_tile_file(f):
                 tiles[key] = f
 
         self._tiles = tiles
@@ -314,10 +400,17 @@ class TilePickerDialog(QDialog):
         if not tiles:
             self._count_label.setText(self.tr("No tiles found in directory."))
             self._ok_btn.setEnabled(False)
+            for btn in (self._clear_btn, self._select_all_btn, self._draw_btn):
+                btn.setEnabled(False)
             return
 
         self._count_label.setText(self.tr("{0} tiles found — 0 selected").format(len(tiles)))
-        self._clear_btn.setEnabled(True)
+        for btn in (self._clear_btn, self._select_all_btn, self._draw_btn):
+            btn.setEnabled(True)
+        # Fresh map → draw mode starts off (button unchecked, signal silent).
+        self._draw_btn.blockSignals(True)
+        self._draw_btn.setChecked(False)
+        self._draw_btn.blockSignals(False)
         self._load_map()
 
     def _load_map(self) -> None:
@@ -381,10 +474,32 @@ class TilePickerDialog(QDialog):
     def _clear_all(self) -> None:
         self._selected.clear()
         self._update_count()
-        if self._web_view is not None:
-            page = self._web_view.page() if hasattr(self._web_view, "page") else None
-            if page is not None:
-                page.runJavaScript("window.applyClearAll();")
+        self._run_js("window.applyClearAll();")
+
+    def _select_all(self) -> None:
+        self._selected = set(self._tiles)
+        self._update_count()
+        self._run_js("window.applySelectAll();")
+
+    def _add_selection(self, keys: list[str]) -> None:
+        """Add map-drawn tile keys to the selection (rectangle-draw result)."""
+        added = {k for k in keys if k in self._tiles}
+        if not added:
+            return
+        self._selected |= added
+        self._update_count()
+        self._run_js(f"window.applySelectKeys({json.dumps(sorted(added))});")
+
+    def _set_draw_mode(self, enabled: bool) -> None:
+        """Toggle rectangle-draw selection; map panning is disabled while active."""
+        self._run_js(f"window.setDrawMode({json.dumps(bool(enabled))});")
+
+    def _run_js(self, script: str) -> None:
+        if self._web_view is None:
+            return
+        page = self._web_view.page() if hasattr(self._web_view, "page") else None
+        if page is not None:
+            page.runJavaScript(script)
 
     def _update_count(self) -> None:
         n_total = len(self._tiles)

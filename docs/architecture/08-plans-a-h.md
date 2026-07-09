@@ -10,13 +10,13 @@ semantics without explicit override from the architect.**
 | Plan | Status | Branch | Notes |
 |------|--------|--------|-------|
 | G | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | DEM scalability; review findings fixed; `make check` passed |
-| C | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Survey line import; `make check` passed |
+| C | wired into pipeline + GUI | `codex/plan-g-scalability` | Survey line import; now consumed by the conduit stage via `ProjectFile.caveline_path` + Tools-tab "Caveline" browse; `make check` passed |
 | D | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | POI type discrimination; `make check` passed |
 | A | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Multidirectional hillshade; `make check` passed |
 | B | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Depression depth raster export; `make check` passed |
-| E | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Doline alignment rosettes; `make check` passed |
-| F | reviewed — accepted for Plan H development | `codex/plan-g-scalability` | Conduit prediction corridor; 20 tests; `make check` passed. See Plan F deviations below. |
-| H | implemented — ready for review | `codex/plan-g-scalability` | Backtest validation; 8 tests; `make check` passed. See Plan H deviations below. |
+| E | wired into pipeline | `codex/plan-g-scalability` | Doline alignment rosettes; now run inside the conduit stage (feeds heading); rosette PNGs written to `output/rosettes`; `make check` passed |
+| F | wired into pipeline + GUI + map | `codex/plan-g-scalability` | Conduit prediction corridor; run when a caveline is set; corridor isolines + ranked candidate dolines rendered on the map; summary in `PipelineResult.provenance["conduit"]`; `make check` passed. See Plan F deviations below. |
+| H | wired into pipeline | `codex/plan-g-scalability` | Backtest validation; runs (best-effort) after conduit projection; report/figure written; `make check` passed. See Plan H deviations below. |
 | I | implemented — ready for review | `codex/plan-g-scalability` | Distance measurement; client-side Leaflet JS; 3 tests; `make check` passed |
 | J | implemented — ready for review | `codex/plan-g-scalability` | BRGM Cavités overlay; reuses dept combo (not QLineEdit); 4 tests; `make check` passed |
 | K | implemented — ready for review | `codex/plan-g-scalability` | Extra basemaps + WMS; sourced from region map_layers (not new fr.json keys); 3 tests; `make check` passed |

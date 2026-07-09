@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
+    QColorDialog,
     QComboBox,
     QFileDialog,
     QFormLayout,
@@ -21,7 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from karstlab.business.marker_manager import poi_records_to_geodataframe
+from karstlab.business.marker_manager import imported_marker_color, poi_records_to_geodataframe
 from karstlab.data.poi import FRENCH_DEPARTMENTS, fetch_poi
 from karstlab.data.vector_io import read_gpx_waypoints, read_kml_geometries, to_gpx
 
@@ -68,6 +70,8 @@ class MarkersTab(QWidget):
     gpx_export_save_requested = Signal(str, list)
     status_updated = Signal(str)
     brgm_load_requested = Signal(str)
+    marker_color_changed = Signal(str, str)  # (file name, "#rrggbb")
+    geodata_layer_requested = Signal(str)  # vector-overlay name to fetch on demand
 
     def __init__(self) -> None:
         super().__init__()
@@ -79,6 +83,8 @@ class MarkersTab(QWidget):
         self._poi_source_combo: QComboBox | None = None
         self._poi_dept_combo: QComboBox | None = None
         self._poi_fetch_button: QPushButton | None = None
+        self._geodata_combo: QComboBox | None = None
+        self._geodata_button: QPushButton | None = None
         self.marker_list: QListWidget | None = None
         self._build_layout()
 
@@ -89,19 +95,72 @@ class MarkersTab(QWidget):
         layout.addWidget(self._gps_group())
         layout.addLayout(self._import_row())
         layout.addWidget(self._poi_group())
+        layout.addWidget(self._geodata_group())
 
         layout.addWidget(QLabel(self.tr("Imported markers:")))
         self.marker_list = QListWidget()
         layout.addWidget(self.marker_list)
 
+        list_buttons = QHBoxLayout()
+        color_button = QPushButton(self.tr("Set colour…"))
+        color_button.setToolTip(self.tr("Choose a stable colour for the selected imported file"))
+        color_button.clicked.connect(self._set_marker_color)
         delete_button = QPushButton(self.tr("Remove selected"))
         delete_button.clicked.connect(self._remove_selected)
-        layout.addWidget(delete_button)
+        list_buttons.addWidget(color_button)
+        list_buttons.addWidget(delete_button)
+        layout.addLayout(list_buttons)
         layout.addStretch(1)
+
+    def _set_marker_color(self) -> None:
+        """Let the user pick a stable colour for the selected imported file."""
+        if self.marker_list is None:
+            return
+        row = self.marker_list.currentRow()
+        if row < 0 or row >= len(self._marker_paths):
+            self.status_updated.emit(self.tr("Select an imported file first"))
+            return
+        path = self._marker_paths[row]
+        initial = QColor(imported_marker_color(path.name))
+        chosen = QColorDialog.getColor(initial, self, self.tr("Marker colour"))
+        if chosen.isValid():
+            self.marker_color_changed.emit(path.name, chosen.name())
+
+    def _geodata_group(self) -> QGroupBox:
+        group = QGroupBox(self.tr("Geodata layers (on demand)"))
+        row = QHBoxLayout(group)
+        self._geodata_combo = QComboBox()
+        self._geodata_combo.setEnabled(False)
+        self._geodata_button = QPushButton(self.tr("Show on map"))
+        self._geodata_button.setEnabled(False)
+        self._geodata_button.setToolTip(
+            self.tr("Fetch the selected source for the current analysis area and overlay it")
+        )
+        self._geodata_button.clicked.connect(self._request_geodata_layer)
+        row.addWidget(self._geodata_combo, 1)
+        row.addWidget(self._geodata_button)
+        return group
+
+    def set_geodata_layers(self, names: list[str]) -> None:
+        """Populate the on-demand geodata layer chooser from the active profile."""
+        if self._geodata_combo is None or self._geodata_button is None:
+            return
+        self._geodata_combo.clear()
+        for name in names:
+            self._geodata_combo.addItem(name)
+        has_layers = bool(names)
+        self._geodata_combo.setEnabled(has_layers)
+        self._geodata_button.setEnabled(has_layers)
+
+    def _request_geodata_layer(self) -> None:
+        if self._geodata_combo is None or not self._geodata_combo.count():
+            return
+        self.geodata_layer_requested.emit(self._geodata_combo.currentText())
 
     def _gps_group(self) -> QGroupBox:
         group = QGroupBox(self.tr("Add marker by coordinate"))
         form = QFormLayout(group)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self._gps_name_edit = QLineEdit()
         self._gps_name_edit.setPlaceholderText(self.tr("Marker name"))
         self._gps_coord_edit = QLineEdit()
@@ -133,6 +192,8 @@ class MarkersTab(QWidget):
     def _poi_group(self) -> QGroupBox:
         group = QGroupBox(self.tr("Load POI from online source"))
         form = QFormLayout(group)
+        # Let the field column grow to the panel width so the buttons aren't clipped.
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self._poi_source_combo = QComboBox()
         self._poi_source_combo.addItem(self.tr("BRGM Cavités Géorisques"), "brgm_cavites")
         self._poi_source_combo.addItem(self.tr("Spélébase (stub)"), "spelebase")
@@ -141,7 +202,7 @@ class MarkersTab(QWidget):
             self._poi_dept_combo.addItem(f"{code} — {name}", code)
         self._poi_fetch_button = QPushButton(self.tr("Fetch"))
         self._poi_fetch_button.clicked.connect(self._fetch_poi)
-        self._brgm_overlay_button = QPushButton(self.tr("Show BRGM on map"))
+        self._brgm_overlay_button = QPushButton(self.tr("Show on map"))
         self._brgm_overlay_button.clicked.connect(self._request_brgm_overlay)
         form.addRow(self.tr("Source"), self._poi_source_combo)
         form.addRow(self.tr("Department"), self._poi_dept_combo)

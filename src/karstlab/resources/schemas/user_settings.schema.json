@@ -100,6 +100,13 @@
       "default": null,
       "title": "Last Project Dir"
     },
+    "marker_colors": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Marker Colors",
+      "type": "object"
+    },
     "recent_projects": {
       "items": {
         "format": "path",

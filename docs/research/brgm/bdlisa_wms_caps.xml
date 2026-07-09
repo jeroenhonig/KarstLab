@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html  lang="fr" dir="ltr" prefix="content: http://purl.org/rss/1.0/modules/content/  dc: http://purl.org/dc/terms/  foaf: http://xmlns.com/foaf/0.1/  og: http://ogp.me/ns#  rdfs: http://www.w3.org/2000/01/rdf-schema#  schema: http://schema.org/  sioc: http://rdfs.org/sioc/ns#  sioct: http://rdfs.org/sioc/types#  skos: http://www.w3.org/2004/02/skos/core#  xsd: http://www.w3.org/2001/XMLSchema# ">
+  <head>
+    <meta charset="utf-8" />
+<meta name="Generator" content="Drupal 8 (https://www.drupal.org)" />
+<meta name="MobileOptimized" content="width" />
+<meta name="HandheldFriendly" content="true" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="/themes/bdlisa/favicon.ico" type="image/vnd.microsoft.icon" />
+
+    <title>Page non trouvée | BDLISA</title>
+    <link rel="stylesheet" href="/sites/default/files/css/css__wBfhyL83sORKzo__AgHv4HOGuOoSbIzIaa4clq9PXs.css?t2meqh" media="all" />
+<link rel="stylesheet" href="//cdn.jsdelivr.net/bootstrap/3.3.7/css/bootstrap.min.css" media="all" />
+<link rel="stylesheet" href="/sites/default/files/css/css_O_UgiaQg3b-5ht-wiadsUJaUWnObpmfn6WTlYnnPTis.css?t2meqh" media="all" />
+
+    
+<!--[if lte IE 8]>
+<script src="/sites/default/files/js/js_fm4aItikc0vaF2a0RWERxjiVf1v3WCiZzyxEKe3g-68.js"></script>
+<![endif]-->
+
+	<link href="https://fonts.googleapis.com/css?family=Montserrat:400,600|Roboto|Roboto+Slab|Open+Sans:400,700" rel="stylesheet">
+  </head>
+  <body class="path-geoserver navbar-is-static-top has-glyphicons">
+    <a href="#main-content" class="visually-hidden focusable skip-link">
+      Aller au contenu principal
+    </a>
+    
+      <div class="dialog-off-canvas-main-canvas" data-off-canvas-main-canvas>
+              <header class="navbar navbar-default navbar-static-top" id="navbar" role="banner">
+              <div class="container">
+            <div class="navbar-header">
+          <div class="region region-navigation">
+          <a class="logo navbar-btn pull-left" href="/" title="Accueil" rel="home">
+      <img src="/themes/bdlisa/logo.svg" alt="Accueil" />
+    </a>
+      <section id="block-eaufrance2" class="block block-block-content block-block-contenta1335399-29a6-4380-945a-41021544c21d clearfix">
+  
+    
+
+      
+            <div class="field field--name-body field--type-text-with-summary field--label-hidden field--item"><p><a href="http://www.eaufrance.fr/" target="_blank"><img alt="logo eaufrance" class="logo-eaufrance" data-entity-type="file" data-entity-uuid="4f8df127-8233-4e78-b86c-826a3d44dec9" src="/sites/default/files/inline-images/logo-eaufrance_4.png" /></a></p>
+</div>
+      
+  </section>
+
+
+  </div>
+
+                          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+              </div>
+
+                    <div id="navbar-collapse" class="navbar-collapse collapse">
+            <div class="region region-navigation-collapsible">
+    <nav role="navigation" aria-labelledby="block-bdlisa-main-menu-menu" id="block-bdlisa-main-menu">
+            <h2 class="sr-only" id="block-bdlisa-main-menu-menu">Main navigation</h2>
+
+      
+              <ul class="menu nav navbar-nav">
+                            <li>
+        <a href="/carte" target="_self" class="visualiser" data-drupal-link-system-path="carte">Visualiser</a>
+                  </li>
+                        <li>
+        <a href="/telechargement" target="_self" class="download" data-drupal-link-system-path="telechargement">Télécharger</a>
+                  </li>
+                        <li>
+        <a href="/recherche" target="_self" class="rechercher" data-drupal-link-system-path="recherche">Rechercher</a>
+                  </li>
+                        <li>
+        <a href="/ameliorer" target="_self" class="ameliorer" data-drupal-link-system-path="node/35">Améliorer</a>
+                  </li>
+                        <li>
+        <a href="/decouvrir-la-bdlisa" target="_self" class="decouvrir" data-drupal-link-system-path="node/9">Découvrir</a>
+                  </li>
+        </ul>
+  
+
+
+  </nav>
+
+  </div>
+
+        </div>
+                    </div>
+        <div class="region region-titleblock">
+        <h1 class="page-header">Page non trouvée</h1>
+
+
+  </div>
+ 
+    </header>
+  
+  <div role="main" class="main-container container js-quickedit-main-content">
+    <div class="row">
+		
+                              <div class="col-sm-12" role="heading">
+              <div class="region region-header">
+      
+
+
+  </div>
+
+          </div>
+              
+                              <aside class="col-sm-3" role="complementary">
+            
+          </aside>
+              
+                  <section class="col-sm-9">
+
+                
+                                      
+                  
+                          <a id="main-content"></a>
+            <div class="region region-content">
+      La page demandée n'a pas pu être trouvée.
+
+  </div>
+
+              </section>
+
+                </div>
+  </div>
+
+      <footer class="footer container" role="contentinfo">
+        <div class="region region-footer">
+    <section id="block-footer" class="block block-block-content block-block-content355bbc36-2eb8-4866-9681-becf64dafcce clearfix">
+  
+    
+
+      
+            <div class="field field--name-body field--type-text-with-summary field--label-hidden field--item"><p><img alt="Logo BDLISA" class="footer-logo-bdlisa" data-entity-type="file" src="/themes/bdlisa/logo.svg" /><a href="https://ofb.gouv.fr/"><img alt="Logo OFB" data-entity-type="file" data-entity-uuid="0ec35278-1c47-49be-9a91-1759eeb7e89a" src="/sites/default/files/inline-images/ofb_logo.png" style="height:65px; margin-bottom: 20px;" /></a> <a href="https://www.ecologique-solidaire.gouv.fr/"> <img alt="Ministère de la Transition écologique et solidaire" class="footer-logo-mtes" src="/themes/bdlisa/img/logo-on-mtes.svg" /></a> <a href="http://www.brgm.fr/"> <img alt="Logo BRGM" class="footer-logo-brgm" src="/themes/bdlisa/img/logo_brgm_web_fr_couleur.svg" /></a></p>
+</div>
+      
+  </section>
+
+<nav role="navigation" aria-labelledby="block-bdlisa-footer-menu" id="block-bdlisa-footer">
+            
+  <h2 class="visually-hidden" id="block-bdlisa-footer-menu">Footer menu</h2>
+  
+
+        
+        	<div>
+      <ul  class="menu nav">
+                            <li>
+        <a href="/carte" data-drupal-link-system-path="carte">Visualiser</a>
+                  </li>
+                        <li>
+        <a href="/telecharger">Télécharger</a>
+                  </li>
+                        <li>
+        <a href="/recherche" data-drupal-link-system-path="recherche">Rechercher</a>
+                  </li>
+                        <li>
+        <a href="/ameliorer" target="_self" data-drupal-link-system-path="node/35">Participer</a>
+                  </li>
+                        <li>
+        <a href="/contact" data-drupal-link-system-path="contact">Contact</a>
+                  </li>
+                        <li>
+        <a href="/avertissements" data-drupal-link-system-path="node/57">Avertissements</a>
+                  </li>
+                        <li>
+        <a href="/donnees-personnelles" data-drupal-link-system-path="node/78">Données personnelles</a>
+                  </li>
+                        <li>
+        <a href="/mentions-legales-credits" data-drupal-link-system-path="node/56">Mentions légales / Crédits</a>
+                  </li>
+        </ul>
+	</div>
+  
+
+
+  </nav>
+
+  </div>
+
+    </footer>
+  
+  </div>
+
+    
+    <script type="application/json" data-drupal-selector="drupal-settings-json">{"path":{"baseUrl":"\/","scriptPath":null,"pathPrefix":"","currentPath":"","currentPathIsAdmin":false,"isFront":false,"currentLanguage":"fr","currentQuery":{"request":"GetCapabilities","service":"WMS","version":"1.3.0"}},"pluralDelimiter":"\u0003","bootstrap":{"forms_has_error_value_toggle":1,"modal_animation":1,"modal_backdrop":"true","modal_keyboard":1,"modal_show":1,"modal_size":"","popover_enabled":1,"popover_animation":1,"popover_container":"body","popover_content":"","popover_delay":"0","popover_html":0,"popover_placement":"right","popover_selector":"","popover_title":"","popover_trigger":"click","popover_trigger_autoclose":1,"tooltip_enabled":1,"tooltip_animation":1,"tooltip_container":"body","tooltip_delay":"0","tooltip_html":0,"tooltip_placement":"auto left","tooltip_selector":"","tooltip_trigger":"hover"},"user":{"uid":0,"permissionsHash":"710af510f1bf3701e2d7b974b569a7430e58752ee0fc6eda69c9fe95ebe90bbc"}}</script>
+<script src="/sites/default/files/js/js_7Zox-dg5ntmM_C2UFI--oQe5PwBBj0_hS4V0iVqUbos.js"></script>
+<script src="//cdn.jsdelivr.net/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<script src="/sites/default/files/js/js_WApCtOKzI8cJ2VJeckKRRJ1YjBX9oYnu9hruvXcRNYs.js"></script>
+
+
+      <!-- Piwik --> 
+    <script type="text/javascript">
+
+    // get Piwik URL and id for the domain
+    var DOMAIN_PIWIK = '';
+    var ID_SITE_PIWIK = '';
+    var PIWIK_API_KEYS = [
+        {host: 'bdlisarec.eaufrance.fr', idSite: '142', domainPiwik: 'brgm-rec'},
+        {host: 'bdlisa.eaufrance.fr', idSite: '141', domainPiwik: 'brgm'},
+        {host: 'data.geoscience.fr', idSite: '141', domainPiwik: 'brgm'},        
+        {host: '*', idSite: '142', domainPiwik: 'brgm-rec'}
+    ];
+
+    for(var i=0; i<PIWIK_API_KEYS.length; i++){
+         var k = PIWIK_API_KEYS[i];
+         if ('*' === k.host || -1 !== document.domain.indexOf(k.host)) {
+             ID_SITE_PIWIK = k.idSite;
+             DOMAIN_PIWIK = k.domainPiwik;
+             break;
+         }    
+    }
+
+    var pkBaseURL = "https://wwwstats."+DOMAIN_PIWIK+".fr/";
+    document.write(unescape("%3Cscript src='" + pkBaseURL + "piwik.js' type='text/javascript'%3E%3C/script%3E"));
+
+    </script>
+    <script type="text/javascript">
+    try {
+    var piwikTracker = Piwik.getTracker(pkBaseURL + "piwik.php", ID_SITE_PIWIK);
+    piwikTracker.trackPageView();
+    piwikTracker.enableLinkTracking();
+    } catch( err ) {}
+    </script>
+    <noscript><p><img src="http://wwwstats.brgm.fr/piwik.php?idsite=141" style="border:0" alt="" /></p></noscript>
+    <!-- End Piwik Tracking Code -->
+
+  </body>
+ 
+</html>

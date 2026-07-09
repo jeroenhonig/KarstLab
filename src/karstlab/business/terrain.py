@@ -183,12 +183,18 @@ def compute_terrain_derivatives(
 
 
 def _as_elevation(dem: NDArray[Any]) -> NDArray[np.float64]:
-    elevation = np.asarray(dem, dtype=np.float64)
+    # Preserve a float32 DEM at float32 instead of upcasting to float64. The
+    # derivative chain (gradient, slope, hillshade, curvature) stays in the input
+    # precision, halving working memory and arithmetic for float32 tiles. Integer
+    # or other non-float inputs are promoted to float64 so np.nan masking works.
+    elevation = np.asarray(dem)
+    if not np.issubdtype(elevation.dtype, np.floating):
+        elevation = elevation.astype(np.float64)
     if elevation.ndim != 2:
         raise ValueError("terrain helpers expect a 2D DEM array")
     if elevation.shape[0] < 2 or elevation.shape[1] < 2:
         raise ValueError("terrain helpers expect at least a 2x2 DEM array")
-    return elevation
+    return cast(NDArray[np.float64], elevation)
 
 
 def _cell_size(cell_size: CellSize) -> tuple[float, float]:

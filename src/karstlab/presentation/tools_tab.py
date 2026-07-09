@@ -6,6 +6,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QDoubleSpinBox,
@@ -13,10 +14,8 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QMessageBox,
-    QProgressBar,
     QPushButton,
     QSpinBox,
     QVBoxLayout,
@@ -25,6 +24,28 @@ from PySide6.QtWidgets import (
 
 from karstlab.data.land_profiles import list_land_profile_ids
 from karstlab.data.schemas import AnalysisParams
+from karstlab.presentation.analysis_progress import AnalysisProgressPanel
+
+
+def _file_picker_field(edit: QLineEdit, *buttons: QPushButton) -> QWidget:
+    """Stack a path line-edit over a left-aligned row of its buttons.
+
+    Vertical stacking keeps the buttons' labels from being clipped on the narrow
+    side panel, where edit + buttons would not fit on one line beside the label.
+    """
+    container = QVBoxLayout()
+    container.setContentsMargins(0, 0, 0, 0)
+    container.setSpacing(4)
+    container.addWidget(edit)
+    button_row = QHBoxLayout()
+    button_row.setContentsMargins(0, 0, 0, 0)
+    for button in buttons:
+        button_row.addWidget(button)
+    button_row.addStretch(1)
+    container.addLayout(button_row)
+    wrapper = QWidget()
+    wrapper.setLayout(container)
+    return wrapper
 
 
 class ToolsTab(QWidget):
@@ -58,23 +79,60 @@ class ToolsTab(QWidget):
         self._profile_combo = QComboBox()
         self._profile_combo.addItems(list_land_profile_ids())
 
+        self._fault_path: Path | None = None
+        self._fault_edit = QLineEdit()
+        self._fault_edit.setReadOnly(True)
+        self._fault_edit.setPlaceholderText(self.tr("Optional: BDCharm50 faults (.shp/.zip/dir)"))
+        self._fault_browse_button = QPushButton(self.tr("Faults…"))
+        self._fault_browse_button.clicked.connect(self._browse_faults)
+        self._fault_clear_button = QPushButton(self.tr("Clear"))
+        self._fault_clear_button.clicked.connect(self._clear_faults)
+
+        self._caveline_path: Path | None = None
+        self._caveline_edit = QLineEdit()
+        self._caveline_edit.setReadOnly(True)
+        self._caveline_edit.setPlaceholderText(
+            self.tr("Optional: known cave survey (.gpx/.kml) → conduit projection")
+        )
+        self._caveline_browse_button = QPushButton(self.tr("Caveline…"))
+        self._caveline_browse_button.clicked.connect(self._browse_caveline)
+        self._caveline_clear_button = QPushButton(self.tr("Clear"))
+        self._caveline_clear_button.clicked.connect(self._clear_caveline)
+        # Which end of the survey the conduit projects FROM (userData = schema value).
+        self._caveline_dir_combo = QComboBox()
+        self._caveline_dir_combo.addItem(self.tr("Project from survey start"), "first")
+        self._caveline_dir_combo.addItem(self.tr("Project from survey end"), "last")
+        self._caveline_dir_combo.setToolTip(
+            self.tr("Flip which end of the survey the predicted conduit extends from")
+        )
+
         form_layout = QFormLayout()
-        dem_row = QHBoxLayout()
-        dem_row.addWidget(self._dem_edit)
-        dem_row.addWidget(self._dem_browse_button)
-        dem_row.addWidget(self._dem_tiles_button)
-        dem_wrapper = QWidget()
-        dem_wrapper.setLayout(dem_row)
-        form_layout.addRow(self.tr("DEM"), dem_wrapper)
-
-        project_row = QHBoxLayout()
-        project_row.addWidget(self._project_edit)
-        project_row.addWidget(self._project_browse_button)
-        project_wrapper = QWidget()
-        project_wrapper.setLayout(project_row)
-        form_layout.addRow(self.tr("Project folder"), project_wrapper)
-
+        # The side panel is narrow. A file row (path edit + 2-3 buttons) cannot fit
+        # on one line beside its label without clipping the button labels, so stack
+        # the edit over a row of buttons; the field then needs only its own width.
+        form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        form_layout.addRow(
+            self.tr("DEM"),
+            _file_picker_field(self._dem_edit, self._dem_browse_button, self._dem_tiles_button),
+        )
+        form_layout.addRow(
+            self.tr("Project folder"),
+            _file_picker_field(self._project_edit, self._project_browse_button),
+        )
         form_layout.addRow(self.tr("Land profile"), self._profile_combo)
+        form_layout.addRow(
+            self.tr("Faults"),
+            _file_picker_field(
+                self._fault_edit, self._fault_browse_button, self._fault_clear_button
+            ),
+        )
+        form_layout.addRow(
+            self.tr("Caveline"),
+            _file_picker_field(
+                self._caveline_edit, self._caveline_browse_button, self._caveline_clear_button
+            ),
+        )
+        form_layout.addRow(self.tr("Conduit direction"), self._caveline_dir_combo)
 
         params_group = self._create_parameters_group()
 
@@ -89,11 +147,21 @@ class ToolsTab(QWidget):
         map_tools_layout.addWidget(self._distance_button)
         map_tools_layout.addWidget(self._profile_button)
 
-        self._progress_bar = QProgressBar()
-        self._progress_bar.setRange(0, 100)
-        self._progress_bar.setValue(0)
-        self._progress_bar.setTextVisible(True)
-        self._progress_bar.setFormat("%p%")
+        self._progress_panel = AnalysisProgressPanel()
+        # Keep the bar/status attributes the rest of the app and the tests read
+        # via ToolsTab; the panel owns the richer phase + log presentation.
+        self._progress_bar = self._progress_panel.bar
+        self._status_label = self._progress_panel.message_label
+
+        self._force_recompute_checkbox = QCheckBox(
+            self.tr("Force recompute (ignore cached DEM steps)")
+        )
+        self._force_recompute_checkbox.setToolTip(
+            self.tr(
+                "When off, unchanged-DEM intermediates (mosaic, terrain, hydrology "
+                "fill) are reused so parameter tweaks finish much faster."
+            )
+        )
 
         self._analyze_button = QPushButton(self.tr("Analyze"))
         self._analyze_button.setObjectName("primaryButton")
@@ -103,18 +171,15 @@ class ToolsTab(QWidget):
         self._cancel_button.setEnabled(False)
         self._cancel_button.clicked.connect(self.cancel_requested.emit)
 
-        self._status_label = QLabel(self.tr("Ready"))
-        self._status_label.setObjectName("secondaryText")
-
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
         layout.addLayout(form_layout)
         layout.addWidget(params_group)
         layout.addWidget(map_tools_group)
-        layout.addWidget(self._progress_bar)
+        layout.addWidget(self._progress_panel)
+        layout.addWidget(self._force_recompute_checkbox)
         layout.addWidget(self._analyze_button)
         layout.addWidget(self._cancel_button)
-        layout.addWidget(self._status_label)
         layout.addStretch(1)
 
     def _create_parameters_group(self) -> QGroupBox:
@@ -204,6 +269,64 @@ class ToolsTab(QWidget):
         if path:
             self.set_project_dir(Path(path))
 
+    def _browse_faults(self) -> None:
+        """Pick a BDCharm50 fault dataset (shapefile or zipped package)."""
+        path, _filter = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Select fault dataset"),
+            str(self._fault_path.parent if self._fault_path else Path.home()),
+            self.tr("Faults (*.shp *.zip);;All files (*)"),
+        )
+        if path:
+            self._fault_path = Path(path)
+            self._fault_edit.setText(self._fault_path.name)
+
+    def _clear_faults(self) -> None:
+        self._fault_path = None
+        self._fault_edit.clear()
+
+    def fault_lines_path(self) -> Path | None:
+        """Return the selected fault dataset path, or ``None``."""
+        return self._fault_path
+
+    def set_fault_lines_path(self, path: Path | None) -> None:
+        self._fault_path = path
+        self._fault_edit.setText(path.name if path else "")
+
+    def _browse_caveline(self) -> None:
+        """Pick a known cave-survey line (GPX/KML) to enable conduit projection."""
+        path, _filter = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Select cave survey line"),
+            str(self._caveline_path.parent if self._caveline_path else Path.home()),
+            self.tr("Survey lines (*.gpx *.kml);;All files (*)"),
+        )
+        if path:
+            self._caveline_path = Path(path)
+            self._caveline_edit.setText(self._caveline_path.name)
+
+    def _clear_caveline(self) -> None:
+        self._caveline_path = None
+        self._caveline_edit.clear()
+
+    def caveline_path(self) -> Path | None:
+        """Return the selected cave-survey line path, or ``None``."""
+        return self._caveline_path
+
+    def set_caveline_path(self, path: Path | None) -> None:
+        self._caveline_path = path
+        self._caveline_edit.setText(path.name if path else "")
+
+    def caveline_downstream_end(self) -> str:
+        """Return the selected projection end: "first" (survey start) or "last"."""
+        value = self._caveline_dir_combo.currentData()
+        return value if value in ("first", "last") else "first"
+
+    def set_caveline_downstream_end(self, end: str) -> None:
+        index = self._caveline_dir_combo.findData("last" if end == "last" else "first")
+        if index >= 0:
+            self._caveline_dir_combo.setCurrentIndex(index)
+
     def set_dem_path(self, path: Path) -> None:
         """Set the DEM path and update display."""
         self._dem_path = path
@@ -273,11 +396,27 @@ class ToolsTab(QWidget):
 
     def set_progress(self, value: int) -> None:
         """Set the progress bar value (0-100)."""
-        self._progress_bar.setValue(value)
+        self._progress_panel.set_percent(value)
 
     def set_status(self, text: str) -> None:
         """Set the status label text."""
-        self._status_label.setText(text)
+        self._progress_panel.set_message(text)
+
+    def force_recompute(self) -> bool:
+        """Whether the user asked to ignore cached DEM intermediates."""
+        return self._force_recompute_checkbox.isChecked()
+
+    def begin_progress(self) -> None:
+        """Reset the progress panel and start the live clock for a new run."""
+        self._progress_panel.begin()
+
+    def report_progress(self, message: str) -> None:
+        """Feed one pipeline progress message into the phase/log panel."""
+        self._progress_panel.report(message)
+
+    def end_progress(self, summary: str, *, percent: int | None = None) -> None:
+        """Stop the clock and show a terminal summary on the panel."""
+        self._progress_panel.end(summary, percent=percent)
 
     def set_distance_mode(self, active: bool) -> None:
         """Set the measure-distance toggle state programmatically."""

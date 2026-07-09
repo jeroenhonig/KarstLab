@@ -43,7 +43,11 @@ class AnalysisWorker(QObject):
         profile_id: str,
         analysis_params: AnalysisParams,
         marker_paths: Sequence[Path] = (),
+        fault_lines_path: Path | None = None,
+        caveline_path: Path | None = None,
+        caveline_downstream_end: str = "first",
         runner: AnalysisRunner | None = None,
+        force_recompute: bool = False,
     ) -> None:
         super().__init__()
         self._dem_paths = dem_paths
@@ -52,7 +56,11 @@ class AnalysisWorker(QObject):
         self._profile_id = profile_id
         self._analysis_params = analysis_params
         self._marker_paths = list(marker_paths)
+        self._fault_lines_path = fault_lines_path
+        self._caveline_path = caveline_path
+        self._caveline_downstream_end = caveline_downstream_end
         self._runner = runner
+        self._force_recompute = force_recompute
 
     def run(self) -> None:
         from karstlab.presentation.main_window import _default_analysis_runner
@@ -73,11 +81,18 @@ class AnalysisWorker(QObject):
                     update={
                         "dem_paths": self._dem_paths,
                         "marker_paths": self._marker_paths,
+                        "fault_lines_path": self._fault_lines_path,
+                        "caveline_path": self._caveline_path,
+                        "caveline_downstream_end": self._caveline_downstream_end,
                     }
                 )
             )
-            runner = self._runner or _default_analysis_runner
-            result = runner(project, self._emit_progress)
+            if self._runner is not None:
+                result = self._runner(project, self._emit_progress)
+            else:
+                result = _default_analysis_runner(
+                    project, self._emit_progress, force_recompute=self._force_recompute
+                )
             project = save_project(
                 project.model_copy(
                     update={

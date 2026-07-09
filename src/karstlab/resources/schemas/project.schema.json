@@ -43,6 +43,29 @@
       "title": "AnalysisParams",
       "type": "object"
     },
+    "Coordinate": {
+      "additionalProperties": false,
+      "properties": {
+        "lat": {
+          "maximum": 90.0,
+          "minimum": -90.0,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180.0,
+          "minimum": -180.0,
+          "title": "Lon",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lon"
+      ],
+      "title": "Coordinate",
+      "type": "object"
+    },
     "Locale": {
       "enum": [
         "en",
@@ -62,6 +85,35 @@
       "format": "path",
       "title": "Cache Dir",
       "type": "string"
+    },
+    "caveline_downstream_end": {
+      "default": "first",
+      "enum": [
+        "first",
+        "last"
+      ],
+      "title": "Caveline Downstream End",
+      "type": "string"
+    },
+    "caveline_path": {
+      "anyOf": [
+        {
+          "format": "path",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Caveline Path"
+    },
+    "conduit_target_points": {
+      "items": {
+        "$ref": "#/$defs/Coordinate"
+      },
+      "title": "Conduit Target Points",
+      "type": "array"
     },
     "created": {
       "format": "date-time",
@@ -91,6 +143,19 @@
       "format": "path",
       "title": "Export Dir",
       "type": "string"
+    },
+    "fault_lines_path": {
+      "anyOf": [
+        {
+          "format": "path",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Fault Lines Path"
     },
     "id": {
       "format": "uuid",

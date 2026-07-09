@@ -79,6 +79,8 @@ def _stylesheet() -> str:
     }
     QProgressBar::chunk { background: #c75d4a; border-radius: 4px; }
     QLabel#secondaryText { color: #9ca3b8; }
+    QLabel#phaseHeader { color: #e8eaf0; font-weight: 600; }
+    QToolButton#secondaryText { color: #9ca3b8; border: none; padding: 0; }
     QHeaderView::section { background: #242938; color: #e8eaf0; border: 0; padding: 6px; }
     """
 
