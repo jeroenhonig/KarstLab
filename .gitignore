@@ -21,5 +21,6 @@ htmlcov/
 warn-*.txt
 skills-lock.json
 .agents/
-.claude/
+.claude/worktrees/
+.claude/settings.local.json
 get-shit-done/
